@@ -13,10 +13,10 @@ Each file here is a halftone *source* for the QR generator. They are sampled per
 | File | Source | Notes |
 |---|---|---|
 | `saturn.svg` | hand-drawn | ringed planet silhouette |
-| `telescope.svg` | hand-drawn | reflector on tripod |
-| `galaxy-spiral.svg` | hand-drawn | top-down spiral |
-| `comet.svg` | hand-drawn | comet with diagonal tail |
-| `observatory-dome.svg` | hand-drawn | dome + base |
+| `orion.svg` | hand-authored | constellation, 7 stars + belt + connectors |
+| `scorpius.svg` | hand-authored | constellation, 11 stars in J-curve with stinger |
+| `crux.svg` | hand-authored | constellation, 5-star Southern Cross |
+| `sagittarius-teapot.svg` | hand-authored | asterism within Sagittarius, 8-star teapot |
 | `ntu-astro-mark.svg` | hand-traced from `logo-1.jpeg` | club monogram, halftones cleanly |
 | `ntu-astro-scene.png` | resized from `logo-2.jpeg` | moon + rocket scene |
 
