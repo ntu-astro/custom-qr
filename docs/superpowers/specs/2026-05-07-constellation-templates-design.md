@@ -46,14 +46,15 @@ All four constellation SVGs follow the same conventions to keep the halftone res
 
 - **Canvas:** `viewBox="0 0 512 512"`, square, transparent background.
 - **Color:** single fill/stroke `#211922` (renderer treats dark pixels as draw-a-dot; per-template `accent` colour applies in the gallery palette, not in the source SVG).
+- **Visual weight target:** the connected figure should read as a bold silhouette occupying most of the canvas — comparable visual weight to Saturn's 120px-radius planet body (saturn.svg). Sparse thin geometry would be lost under halftone sampling.
 - **Stars:** filled `<circle>` elements, radius scaled by apparent magnitude:
-  - mag ≤ 1.5 → r ≈ 9 (e.g. Antares, Rigel, Acrux)
-  - mag 1.5–2.5 → r ≈ 7 (e.g. Belt stars, Mizar)
-  - mag 2.5–3.5 → r ≈ 5 (fainter members)
-  - mag > 3.5 → r ≈ 3.5 (only included when needed for shape recognition)
-- **Connecting lines:** `<line>` elements, `stroke-width="5"`, square caps. Width is above the README's "~3px smear threshold" so connectors survive halftoning.
-- **Composition:** layout the asterism centred in the viewBox with ≥40px padding on each side. Scale star coordinates from canonical sky positions (RA/Dec) so the constellation reads correctly when isolated.
-- **Render order:** lines first, then stars (so star dots sit on top of line endpoints).
+  - mag ≤ 1.5 → r ≈ 32 (e.g. Antares, Rigel, Acrux, Kaus Australis)
+  - mag 1.5–2.5 → r ≈ 24 (e.g. Belt stars, Mimosa, Kaus Media)
+  - mag 2.5–3.5 → r ≈ 18 (fainter members)
+  - mag > 3.5 → r ≈ 13 (only included when needed for shape recognition, e.g. Epsilon Crucis)
+- **Connecting lines:** `<line>` elements, `stroke-width="18"`, `stroke-linecap="round"`. Round caps blend into the star circles so the figure reads as one continuous silhouette. Width comfortably exceeds the README's "~3px smear threshold".
+- **Composition:** layout the asterism centred in the viewBox with ≥40px padding on each side, accounting for star radii (i.e. star *centres* must sit ≥ 40 + r from each edge). Scale star coordinates from canonical sky positions (RA/Dec) so the constellation reads correctly when isolated.
+- **Render order:** lines first, then stars (so star dots sit on top of line endpoints — important since lines are now thick enough to be visually dominant).
 
 ### Star + line lists per constellation
 
@@ -94,7 +95,8 @@ public/templates/sagittarius-teapot.svg         create
 
 | Risk | Mitigation |
 |---|---|
-| Connecting lines render too thin after halftone | 5px stroke is above README's 3px threshold; verify visually after first SVG, adjust if needed before authoring the rest. |
+| Connecting lines render too thin after halftone | 18px stroke + round caps sits well above the 3px smear threshold; verify visually after first SVG, adjust if needed before authoring the rest. |
+| Constellation reads as a sparse dot-cloud rather than a recognisable silhouette | Star radii (13–32px) and 18px round-capped connectors deliberately match Saturn's visual weight. If the first SVG still looks too sparse in halftone preview, scale up uniformly before authoring the rest. |
 | User had previously selected one of the removed templates (state persisted to localStorage / URL) | Out of scope here, but flag during plan: app should fall back to `DEFAULT_TEMPLATE_ID` on unknown id. Confirm this already happens in the loader; if not, add a small guard. |
 | Constellation outlines too sparse to read at small QR sizes | Star radius scaling (3.5–9px) plus 5px connectors keeps the figure legible at 300px+ output; QR generator already targets larger output sizes. |
 
@@ -103,7 +105,7 @@ public/templates/sagittarius-teapot.svg         create
 After implementation:
 1. `npm run build` (or equivalent) passes with no TypeScript errors.
 2. Dev server: gallery shows 7 templates total (Saturn, Orion, Scorpius, Crux, Sagittarius Teapot, NTU Astro mark, NTU Astro scene). Old four are gone.
-3. Each new constellation, when selected, renders a recognisable halftone QR.
+3. Each new constellation, when selected, renders a halftone QR where the constellation silhouette is clearly recognisable (not just a sparse star scatter).
 4. README table matches the actual file list under `public/templates/`.
 
 ## Open questions
