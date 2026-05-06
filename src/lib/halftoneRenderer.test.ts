@@ -89,3 +89,22 @@ describe('render — variable', () => {
     expect(lum).toBeLessThan(120);
   });
 });
+
+describe('render — stippling', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  it('produces uniform-size stipples in dark source areas', () => {
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'stippling',
+      density: 70,
+      marginPx: 16,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const block = ctx.getImageData(0, 0, 16, 16).data;
+    let sum = 0;
+    for (let i = 0; i < block.length; i += 4) sum += (block[i] + block[i + 1] + block[i + 2]) / 3;
+    const avg = sum / (16 * 16);
+    expect(avg).toBeLessThan(220);
+  });
+});

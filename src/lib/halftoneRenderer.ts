@@ -94,6 +94,67 @@ function renderHybrid(
   }
 }
 
+function mulberry32(seed: number) {
+  return () => {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function renderStippling(
+  ctx: CanvasRenderingContext2D,
+  matrix: QRMatrix,
+  source: ImageData,
+  density: number,
+  marginCells: number,
+  cellPx: number,
+) {
+  const totalCells = matrix.size + 2 * marginCells;
+  const densityFactor = density / 100;
+  const STIPPLE_RADIUS = Math.max(1, Math.round(cellPx * 0.12));
+  const MAX_STIPPLES_PER_CELL = 16;
+  const rand = mulberry32(0xa57e3);
+
+  for (let y = 0; y < totalCells; y++) {
+    for (let x = 0; x < totalCells; x++) {
+      const px = x * cellPx;
+      const py = y * cellPx;
+      const u = (x + 0.5) / totalCells;
+      const v = (y + 0.5) / totalCells;
+      const sample = samplePixel(source, u, v);
+
+      const inMatrix =
+        x >= marginCells && x < marginCells + matrix.size &&
+        y >= marginCells && y < marginCells + matrix.size;
+      const mx = x - marginCells;
+      const my = y - marginCells;
+
+      if (inMatrix && matrix.modules[my][mx]) {
+        const c = sample.a < 0.05
+          ? { r: 0, g: 0, b: 0 }
+          : clampLuminosity(sample.r, sample.g, sample.b);
+        ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
+        ctx.fillRect(px, py, cellPx, cellPx);
+        continue;
+      }
+
+      const darkness = 1 - sample.brightness;
+      const count = Math.round(darkness * densityFactor * MAX_STIPPLES_PER_CELL);
+      if (count <= 0) continue;
+      ctx.fillStyle = `rgb(${sample.r},${sample.g},${sample.b})`;
+      for (let i = 0; i < count; i++) {
+        const sx = px + rand() * cellPx;
+        const sy = py + rand() * cellPx;
+        ctx.beginPath();
+        ctx.arc(sx, sy, STIPPLE_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
 function renderVariable(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
@@ -167,6 +228,8 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
       renderVariable(ctx, matrix, source, opts.density, marginCells, cellPx);
       break;
     case 'stippling':
+      renderStippling(ctx, matrix, source, opts.density, marginCells, cellPx);
+      break;
     case 'qrgrid':
       // Implemented in subsequent tasks; fall back to hybrid for now.
       renderHybrid(ctx, matrix, source, opts.density, marginCells, cellPx);
