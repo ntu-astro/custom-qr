@@ -55,7 +55,7 @@ export function composePoster(
   out.width = size.width;
   out.height = size.height;
   out.dataset.fontFamily =
-    '"Pin Sans", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif';
+    '"Inter Variable", "Inter", "Pin Sans", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif';
   const ctx = out.getContext('2d')!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';

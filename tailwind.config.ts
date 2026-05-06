@@ -20,6 +20,8 @@ export default {
       },
       fontFamily: {
         sans: [
+          '"Inter Variable"',
+          '"Inter"',
           '"Pin Sans"',
           '-apple-system',
           'system-ui',
