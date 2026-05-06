@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { TemplatePicker } from './TemplatePicker';
 import { AdvancedOptions } from './AdvancedOptions';
-import type { HalftoneStyle, PosterSize } from '../types';
+import type { HalftoneStyle } from '../types';
 
 export interface ControlsProps {
   url: string;
@@ -13,9 +13,6 @@ export interface ControlsProps {
 
   caption: string;
   onCaptionChange: (v: string) => void;
-
-  posterSize: PosterSize;
-  onPosterSizeChange: (s: PosterSize) => void;
 
   style: HalftoneStyle;
   density: number;

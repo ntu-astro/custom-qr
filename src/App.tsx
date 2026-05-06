@@ -150,8 +150,6 @@ export default function App() {
           customSourceLabel={state.customSource?.filename}
           caption={state.caption}
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
-          posterSize={state.posterSize}
-          onPosterSizeChange={(s) => dispatch({ type: 'SET_POSTER_SIZE', size: s })}
           style={state.style}
           density={state.density}
           marginPx={state.marginPx}
