@@ -4,6 +4,8 @@ import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
 import { buildMatrix } from './lib/qrMatrix';
+import { computeHalftoneTarget } from './lib/halftoneTarget';
+import { pickBestMask } from './lib/maskOptimizer';
 import { render as renderHalftone } from './lib/halftoneRenderer';
 import { composePoster } from './lib/composer';
 import { verify } from './lib/scanVerifier';
@@ -62,13 +64,24 @@ export default function App() {
     async function pipeline() {
       try {
         const url = effectiveUrl(state);
-        const matrix = buildMatrix(url);
+        const baseMatrix = buildMatrix(url);
 
         const sourcePath =
           state.templateId === 'custom' && state.customSource
             ? state.customSource.dataUrl
             : findTemplate(state.templateId).sourcePath;
         const imageData = await loadImageData(sourcePath);
+
+        // Stage 2: pick the QR mask whose post-mask bit pattern best matches the
+        // dithered silhouette, weighted by per-module importance.
+        const halftoneTarget = computeHalftoneTarget(
+          imageData,
+          baseMatrix.size,
+          state.background,
+          baseMatrix.importance,
+        );
+        const { best } = pickBestMask(url, halftoneTarget);
+        const matrix = best.matrix;
 
         const qr = renderHalftone(matrix, imageData, {
           marginPx: state.marginPx,

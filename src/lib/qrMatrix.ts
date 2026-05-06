@@ -84,9 +84,19 @@ function buildImportanceMap(size: number): number[][] {
   return map;
 }
 
-export function buildMatrix(text: string): QRMatrix {
+export interface BuildMatrixOptions {
+  /** Override the QR mask pattern (0..7). Default: let qrcode auto-pick. */
+  maskPattern?: number;
+}
+
+export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRMatrix {
   const input = text.length === 0 ? ' ' : text;
-  const qr = QRCode.create(input, { errorCorrectionLevel: QR_ECC_LEVEL });
+  const qr = options.maskPattern !== undefined
+    ? QRCode.create(input, {
+        errorCorrectionLevel: QR_ECC_LEVEL,
+        maskPattern: options.maskPattern as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7,
+      })
+    : QRCode.create(input, { errorCorrectionLevel: QR_ECC_LEVEL });
   const size: number = qr.modules.size;
   const bitMatrix = qr.modules as unknown as {
     size: number;
