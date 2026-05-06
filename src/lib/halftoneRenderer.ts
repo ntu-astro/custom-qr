@@ -1,6 +1,14 @@
 import type { QRMatrix, RenderOptions, HalftoneStyle } from '../types';
 
-const CELL_PX = 16; // 16 output pixels per QR module — gives room for halftone variation
+// 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
+// The hybrid renderer uses the Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia)
+// technique: paint a Floyd–Steinberg-dithered version of the source illustration across
+// the whole canvas, then stamp just the 1/9 centre sub-pixel of each module with the QR
+// bit. Decoders sample module centres, so the QR remains scannable while the silhouette
+// occupies 8/9 of every cell — an 8× increase in visual real estate vs. one-sample-per
+// -module rendering.
+const CELL_PX = 18;
+const SUB_PX = CELL_PX / 3;
 
 interface PixelSample {
   r: number;
@@ -43,6 +51,117 @@ function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bg:
   }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
+}
+
+interface InkColor { r: number; g: number; b: number }
+
+/** Pick a dominant non-background "ink" colour out of the source so the silhouette
+ *  can be tinted (e.g. NTU scene's moon-blue). Falls back to plum-black for plain
+ *  monochrome silhouettes or fully transparent sources. */
+function pickInkColor(source: ImageData): InkColor {
+  let sumR = 0, sumG = 0, sumB = 0, count = 0;
+  for (let i = 0; i < source.data.length; i += 4) {
+    const a = source.data[i + 3] / 255;
+    if (a < 0.5) continue;
+    const r = source.data[i];
+    const g = source.data[i + 1];
+    const b = source.data[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum < 200) {
+      sumR += r; sumG += g; sumB += b; count++;
+    }
+  }
+  if (count === 0) return { r: 33, g: 25, b: 34 };
+  const avg = {
+    r: Math.round(sumR / count),
+    g: Math.round(sumG / count),
+    b: Math.round(sumB / count),
+  };
+  return clampLuminosity(avg.r, avg.g, avg.b, 0.35);
+}
+
+function parseHex(hex: string): { r: number; g: number; b: number } {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim()) ?? /^#([0-9a-f]{3})$/i.exec(hex.trim());
+  if (!m) return { r: 255, g: 255, b: 255 };
+  if (m[1].length === 3) {
+    const r = parseInt(m[1][0] + m[1][0], 16);
+    const g = parseInt(m[1][1] + m[1][1], 16);
+    const b = parseInt(m[1][2] + m[1][2], 16);
+    return { r, g, b };
+  }
+  return {
+    r: parseInt(m[1].slice(0, 2), 16),
+    g: parseInt(m[1].slice(2, 4), 16),
+    b: parseInt(m[1].slice(4, 6), 16),
+  };
+}
+
+/** Render the source illustration into a target-sized canvas with the given background
+ *  filled in, then return the resulting ImageData. Letterboxes a non-square source
+ *  to preserve aspect ratio. */
+function rasterizeSource(source: ImageData, targetSize: number, background: string): ImageData {
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = source.width;
+  srcCanvas.height = source.height;
+  srcCanvas.getContext('2d')!.putImageData(source, 0, 0);
+
+  const tgtCanvas = document.createElement('canvas');
+  tgtCanvas.width = targetSize;
+  tgtCanvas.height = targetSize;
+  const ctx = tgtCanvas.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if (background === 'transparent') {
+    ctx.clearRect(0, 0, targetSize, targetSize);
+  } else {
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, targetSize, targetSize);
+  }
+  const srcAspect = source.width / source.height;
+  let drawW = targetSize, drawH = targetSize;
+  if (srcAspect > 1) {
+    drawH = targetSize / srcAspect;
+  } else if (srcAspect < 1) {
+    drawW = targetSize * srcAspect;
+  }
+  const drawX = (targetSize - drawW) / 2;
+  const drawY = (targetSize - drawH) / 2;
+  ctx.drawImage(srcCanvas, drawX, drawY, drawW, drawH);
+  return ctx.getImageData(0, 0, targetSize, targetSize);
+}
+
+/** Floyd–Steinberg dither a luma-converted ImageData to a binary 0/255 grid.
+ *  Transparent regions blend against white so silhouettes dither as intended. */
+function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
+  const w = rgba.width;
+  const h = rgba.height;
+  const luma = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const j = i * 4;
+    const a = rgba.data[j + 3] / 255;
+    const r = rgba.data[j] * a + 255 * (1 - a);
+    const g = rgba.data[j + 1] * a + 255 * (1 - a);
+    const b = rgba.data[j + 2] * a + 255 * (1 - a);
+    luma[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const old = luma[i];
+      const newPx = old < 128 ? 0 : 255;
+      luma[i] = newPx;
+      const err = old - newPx;
+      if (x + 1 < w) luma[i + 1] += (err * 7) / 16;
+      if (x - 1 >= 0 && y + 1 < h) luma[i + w - 1] += (err * 3) / 16;
+      if (y + 1 < h) luma[i + w] += (err * 5) / 16;
+      if (x + 1 < w && y + 1 < h) luma[i + w + 1] += (err * 1) / 16;
+    }
+  }
+  const out = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    out[i] = luma[i] > 127 ? 255 : 0;
+  }
+  return out;
 }
 
 /**
@@ -111,43 +230,93 @@ function eachCell(
   }
 }
 
+/** Hybrid (default) — Chu et al. 2013 sub-pixel halftone:
+ *  1. Rasterise the source at sub-pixel resolution (totalCells × 3).
+ *  2. Floyd–Steinberg dither it to a binary 0/255 grid.
+ *  3. Paint that as the base layer of the output canvas, tinted with the source's
+ *     dominant ink colour.
+ *  4. For each non-reserved module, stamp the centre 1/9 sub-pixel with the QR bit
+ *     (dark module → ink fill; light module → background fill). The 8 surrounding
+ *     sub-pixels show the dithered silhouette.
+ *  5. Reserved modules (finder/timing/alignment/format/version) get a full-cell stamp
+ *     so QR decoders can lock onto them reliably. The silhouette is suppressed there.
+ */
 function renderHybrid(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
   source: ImageData,
-  density: number,
   marginCells: number,
   cellPx: number,
+  background: string,
 ) {
-  const densityFactor = density / 100;
+  const subPx = cellPx / 3;
+  // Dither only the QR DATA area (matrix.size × 3 sub-pixels). The margin / quiet
+  // zone stays at the canvas background colour so QR decoders can find the boundary.
+  const dataSubSize = matrix.size * 3;
 
+  const rasterised = rasterizeSource(source, dataSubSize, background);
+  const binary = ditherFloydSteinberg(rasterised);
+  const ink = pickInkColor(source);
+  const inkRgb = `rgb(${ink.r},${ink.g},${ink.b})`;
+
+  // Paint dithered base. Dark dither pixels → ink colour; light dither pixels →
+  // background (transparent stays transparent).
+  const isTransparentBg = background === 'transparent';
+  const bgRgb = isTransparentBg ? null : parseHex(background);
+  const colored = new ImageData(dataSubSize, dataSubSize);
+  for (let i = 0; i < binary.length; i++) {
+    const j = i * 4;
+    if (binary[i] === 0) {
+      colored.data[j] = ink.r;
+      colored.data[j + 1] = ink.g;
+      colored.data[j + 2] = ink.b;
+      colored.data[j + 3] = 255;
+    } else if (bgRgb !== null) {
+      colored.data[j] = bgRgb.r;
+      colored.data[j + 1] = bgRgb.g;
+      colored.data[j + 2] = bgRgb.b;
+      colored.data[j + 3] = 255;
+    }
+    // else: alpha stays 0 (transparent)
+  }
+  // Scale up via temp canvas + nearest-neighbour drawImage so each dither pixel
+  // becomes exactly subPx × subPx on the output. Position it inside the matrix
+  // area; the surrounding margin / quiet zone stays at canvas background.
+  const tmp = document.createElement('canvas');
+  tmp.width = dataSubSize;
+  tmp.height = dataSubSize;
+  tmp.getContext('2d')!.putImageData(colored, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const matrixOffset = marginCells * cellPx;
+  const matrixSidePx = matrix.size * cellPx;
+  ctx.drawImage(tmp, matrixOffset, matrixOffset, matrixSidePx, matrixSidePx);
+
+  // Stamp module centres (or full reserved cells).
   eachCell(matrix, source, marginCells, cellPx, (cell) => {
+    if (!cell.inMatrix) return;
     if (cell.isReserved) {
-      renderReservedCell(ctx, cell.isModuleDark, cell.sample, cell.px, cell.py, cellPx);
+      if (cell.isModuleDark) {
+        ctx.fillStyle = inkRgb;
+        ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
+      } else if (isTransparentBg) {
+        ctx.clearRect(cell.px, cell.py, cellPx, cellPx);
+      } else {
+        ctx.fillStyle = background;
+        ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
+      }
       return;
     }
-
+    const cx = cell.px + subPx;
+    const cy = cell.py + subPx;
     if (cell.isModuleDark) {
-      // Dark data module — preserve square geometry, clamp luminosity for color.
-      // Fully transparent source pixels have no usable color, so we fall back
-      // to a near-black fill to keep the QR scannable on light/empty regions.
-      const c = cell.sample.a < 0.05
-        ? { r: 0, g: 0, b: 0 }
-        : clampLuminosity(cell.sample.r, cell.sample.g, cell.sample.b);
-      ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
-      ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
-      return;
+      ctx.fillStyle = inkRgb;
+      ctx.fillRect(cx, cy, subPx, subPx);
+    } else if (isTransparentBg) {
+      ctx.clearRect(cx, cy, subPx, subPx);
+    } else {
+      ctx.fillStyle = background;
+      ctx.fillRect(cx, cy, subPx, subPx);
     }
-
-    // Non-data (light QR cell or quiet zone): variable-radius halftone dot
-    const darkness = 1 - cell.sample.brightness;
-    const fill = darkness * densityFactor;
-    if (fill <= 0.02) return;
-    const radius = (cellPx / 2) * Math.min(1, Math.sqrt(fill));
-    ctx.fillStyle = `rgb(${cell.sample.r},${cell.sample.g},${cell.sample.b})`;
-    ctx.beginPath();
-    ctx.arc(cell.px + cellPx / 2, cell.py + cellPx / 2, radius, 0, Math.PI * 2);
-    ctx.fill();
   });
 }
 
@@ -292,7 +461,7 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
 
   switch (opts.style) {
     case 'hybrid':
-      renderHybrid(ctx, matrix, source, opts.density, marginCells, cellPx);
+      renderHybrid(ctx, matrix, source, marginCells, cellPx, opts.background);
       break;
     case 'variable':
       renderVariable(ctx, matrix, source, opts.density, marginCells, cellPx);
@@ -313,5 +482,15 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
 }
 
 // Re-exports for tests
-export const __internals = { samplePixel, clampLuminosity, renderReservedCell };
+export const __internals = {
+  samplePixel,
+  clampLuminosity,
+  renderReservedCell,
+  ditherFloydSteinberg,
+  pickInkColor,
+  parseHex,
+  rasterizeSource,
+  CELL_PX,
+  SUB_PX,
+};
 export type { HalftoneStyle };

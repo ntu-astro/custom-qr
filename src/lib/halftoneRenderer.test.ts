@@ -172,3 +172,106 @@ describe('render — reserved-cell suppression', () => {
     expect(lum).toBeGreaterThan(200);
   });
 });
+
+describe('render — hybrid sub-pixel halftone (Chu et al. 2013)', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  // Find a non-reserved data-LIGHT module outside the finder/timing/format regions.
+  function findNonReservedLightModule(): [number, number] {
+    for (let my = 9; my < matrix.size - 9; my++) {
+      for (let mx = 9; mx < matrix.size - 9; mx++) {
+        if (!matrix.modules[my][mx] && !matrix.reservedMask[my][mx]) {
+          return [mx, my];
+        }
+      }
+    }
+    throw new Error('no non-reserved light module found');
+  }
+
+  // Find a non-reserved data-DARK module outside the finder/timing/format regions.
+  function findNonReservedDarkModule(): [number, number] {
+    for (let my = 9; my < matrix.size - 9; my++) {
+      for (let mx = 9; mx < matrix.size - 9; mx++) {
+        if (matrix.modules[my][mx] && !matrix.reservedMask[my][mx]) {
+          return [mx, my];
+        }
+      }
+    }
+    throw new Error('no non-reserved dark module found');
+  }
+
+  it('shows the silhouette in 8/9 sub-pixels of non-reserved data-light cells', () => {
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'hybrid',
+      density: 55,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    const subPx = cellPx / 3;
+    const [mx, my] = findNonReservedLightModule();
+    // Sample the top-left sub-pixel — should be ink (dark) because dithered black source.
+    const cx = Math.floor(mx * cellPx + subPx * 0.5);
+    const cy = Math.floor(my * cellPx + subPx * 0.5);
+    const corner = ctx.getImageData(cx, cy, 1, 1).data;
+    const cornerLum = (corner[0] + corner[1] + corner[2]) / 3;
+    expect(cornerLum).toBeLessThan(80);
+
+    // Sample the centre sub-pixel — should be the BACKGROUND (light) so jsqr reads "0".
+    const ccx = Math.floor(mx * cellPx + subPx * 1.5);
+    const ccy = Math.floor(my * cellPx + subPx * 1.5);
+    const centre = ctx.getImageData(ccx, ccy, 1, 1).data;
+    const centreLum = (centre[0] + centre[1] + centre[2]) / 3;
+    expect(centreLum).toBeGreaterThan(200);
+  });
+
+  it('keeps the QR centre stamp dark in non-reserved data-dark cells under a bright source', () => {
+    const canvas = render(matrix, whiteImageData(256, 256), {
+      style: 'hybrid',
+      density: 55,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    const subPx = cellPx / 3;
+    const [mx, my] = findNonReservedDarkModule();
+    // Centre sub-pixel must be dark (so jsqr reads "1") even though source is white.
+    const ccx = Math.floor(mx * cellPx + subPx * 1.5);
+    const ccy = Math.floor(my * cellPx + subPx * 1.5);
+    const centre = ctx.getImageData(ccx, ccy, 1, 1).data;
+    const centreLum = (centre[0] + centre[1] + centre[2]) / 3;
+    expect(centreLum).toBeLessThan(80);
+  });
+});
+
+describe('render — scan survival', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  it('hybrid sub-pixel render still decodes via jsqr (light source)', async () => {
+    const { verify } = await import('./scanVerifier');
+    const canvas = render(matrix, whiteImageData(256, 256), {
+      style: 'hybrid',
+      density: 55,
+      marginPx: 32,
+      background: '#ffffff',
+    });
+    const results = verify(canvas, [canvas.width]);
+    expect(results[0].ok).toBe(true);
+    expect(results[0].decoded).toBe('https://ntuastro.com');
+  });
+
+  it('hybrid sub-pixel render still decodes via jsqr (dark source — silhouette stress)', async () => {
+    const { verify } = await import('./scanVerifier');
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'hybrid',
+      density: 55,
+      marginPx: 32,
+      background: '#ffffff',
+    });
+    const results = verify(canvas, [canvas.width]);
+    expect(results[0].ok).toBe(true);
+    expect(results[0].decoded).toBe('https://ntuastro.com');
+  });
+});
