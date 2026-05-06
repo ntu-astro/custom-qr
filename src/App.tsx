@@ -1,97 +1,175 @@
-import { useReducer } from 'react';
-import type { HalftoneStyle, PosterSize } from './types';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import type { ScanResult } from './types';
 import { DEFAULT_PLACEHOLDER_URL } from './types';
-import { DEFAULT_TEMPLATE_ID } from './templates/presets';
+import { findTemplate } from './templates/presets';
+import { Controls } from './components/Controls';
+import { QrPreview } from './components/QrPreview';
+import { buildMatrix } from './lib/qrMatrix';
+import { render as renderHalftone } from './lib/halftoneRenderer';
+import { composePoster } from './lib/composer';
+import { verify } from './lib/scanVerifier';
+import { reducer, initialState, effectiveUrl } from './appReducer';
 
-interface CustomSource {
-  dataUrl: string;
-  filename: string;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+
+async function loadImageData(src: string): Promise<ImageData> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+  const canvas = document.createElement('canvas');
+  const targetSide = 1024;
+  canvas.width = targetSide;
+  canvas.height = targetSide;
+  const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.clearRect(0, 0, targetSide, targetSide);
+  const ratio = Math.min(targetSide / img.width, targetSide / img.height);
+  const w = img.width * ratio;
+  const h = img.height * ratio;
+  ctx.drawImage(img, (targetSide - w) / 2, (targetSide - h) / 2, w, h);
+  return ctx.getImageData(0, 0, targetSide, targetSide);
 }
 
-export interface AppState {
-  url: string;
-  templateId: string;
-  customSource: CustomSource | null;
-  caption: string;
-  posterSize: PosterSize;
-  style: HalftoneStyle;
-  density: number;
-  marginPx: number;
-  multiSize: boolean;
-  background: string;
-}
-
-export type AppAction =
-  | { type: 'SET_URL'; value: string }
-  | { type: 'SELECT_TEMPLATE'; id: string }
-  | { type: 'SET_CUSTOM_SOURCE'; source: CustomSource }
-  | { type: 'CLEAR_CUSTOM_SOURCE' }
-  | { type: 'SET_CAPTION'; value: string }
-  | { type: 'SET_POSTER_SIZE'; size: PosterSize }
-  | {
-      type: 'PATCH_ADVANCED';
-      patch: Partial<{
-        style: HalftoneStyle;
-        density: number;
-        marginPx: number;
-        multiSize: boolean;
-        background: string;
-      }>;
-    };
-
-export const initialState: AppState = {
-  url: '',
-  templateId: DEFAULT_TEMPLATE_ID,
-  customSource: null,
-  caption: '',
-  posterSize: { kind: 'igPost', width: 1080, height: 1080 },
-  style: 'hybrid',
-  density: 55,
-  marginPx: 32,
-  multiSize: false,
-  background: 'transparent',
-};
-
-export function reducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case 'SET_URL':
-      return { ...state, url: action.value };
-    case 'SELECT_TEMPLATE':
-      return {
-        ...state,
-        templateId: action.id,
-        customSource: action.id === 'custom' ? state.customSource : null,
-      };
-    case 'SET_CUSTOM_SOURCE':
-      return { ...state, templateId: 'custom', customSource: action.source };
-    case 'CLEAR_CUSTOM_SOURCE':
-      return { ...state, templateId: DEFAULT_TEMPLATE_ID, customSource: null };
-    case 'SET_CAPTION':
-      return { ...state, caption: action.value };
-    case 'SET_POSTER_SIZE':
-      return { ...state, posterSize: action.size };
-    case 'PATCH_ADVANCED':
-      return { ...state, ...action.patch };
-  }
-}
-
-export function effectiveUrl(state: AppState): string {
-  return state.url.trim() || DEFAULT_PLACEHOLDER_URL;
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader error'));
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [posterCanvas, setPosterCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [isRendering, setIsRendering] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const lastGoodCanvasesRef = useRef<{ qr: HTMLCanvasElement | null; poster: HTMLCanvasElement | null }>({
+    qr: null,
+    poster: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsRendering(true);
+
+    async function pipeline() {
+      try {
+        const url = effectiveUrl(state);
+        const matrix = buildMatrix(url);
+
+        const sourcePath =
+          state.templateId === 'custom' && state.customSource
+            ? state.customSource.dataUrl
+            : findTemplate(state.templateId).sourcePath;
+        const imageData = await loadImageData(sourcePath);
+
+        const qr = renderHalftone(matrix, imageData, {
+          style: state.style,
+          density: state.density,
+          marginPx: state.marginPx,
+          background: state.background,
+        });
+
+        const palette =
+          state.templateId === 'custom'
+            ? { accent: '#435ee5', fallbackDark: '#211922' }
+            : findTemplate(state.templateId).palette;
+        const poster = composePoster(qr, state.caption, state.posterSize, palette);
+
+        const sizes = state.multiSize ? [qr.width, 200] : [qr.width];
+        const results = verify(qr, sizes);
+
+        if (cancelled) return;
+        setQrCanvas(qr);
+        setPosterCanvas(poster);
+        setScanResults(results);
+        setErrorMessage(undefined);
+        lastGoodCanvasesRef.current = { qr, poster };
+      } catch (err) {
+        if (cancelled) return;
+        const last = lastGoodCanvasesRef.current;
+        setQrCanvas(last.qr);
+        setPosterCanvas(last.poster);
+        setScanResults([]);
+        const msg = err instanceof Error ? err.message : 'Render failed';
+        if (/too long/i.test(msg) || /not enough|no version|cannot encode/i.test(msg)) {
+          setErrorMessage('Input too long for ECC level H — shorten the URL or text.');
+        } else {
+          setErrorMessage(msg);
+        }
+      } finally {
+        if (!cancelled) setIsRendering(false);
+      }
+    }
+
+    pipeline();
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
+  const handleCustomUpload = async (file: File) => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setErrorMessage('File is larger than 2MB. Pick a smaller PNG or SVG.');
+      return;
+    }
+    if (!/^image\/(png|svg\+xml)$/i.test(file.type)) {
+      setErrorMessage('Only PNG and SVG uploads are supported.');
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      dispatch({ type: 'SET_CUSTOM_SOURCE', source: { dataUrl, filename: file.name } });
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Upload failed');
+    }
+  };
+
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-2xl font-semibold tracking-heading">Astro QR</h1>
-      <p className="text-olivegray mt-2">URL: {effectiveUrl(state)}</p>
-      <button
-        type="button"
-        className="btn-primary mt-4"
-        onClick={() => dispatch({ type: 'SET_URL', value: 'https://ntuastro.com/events' })}
-      >
-        Test reducer
-      </button>
+    <main className="mx-auto max-w-6xl p-6 sm:p-10">
+      <header className="mb-8 flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-heading">Astro QR</h1>
+        <p className="text-sm text-olivegray">NTU Astronomical Society · {DEFAULT_PLACEHOLDER_URL}</p>
+      </header>
+
+      <div className="grid gap-8 md:grid-cols-2">
+        <Controls
+          url={state.url}
+          onUrlChange={(v) => dispatch({ type: 'SET_URL', value: v })}
+          templateId={state.templateId}
+          onTemplateSelect={(id) => dispatch({ type: 'SELECT_TEMPLATE', id })}
+          customSourceLabel={state.customSource?.filename}
+          caption={state.caption}
+          onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
+          posterSize={state.posterSize}
+          onPosterSizeChange={(s) => dispatch({ type: 'SET_POSTER_SIZE', size: s })}
+          style={state.style}
+          density={state.density}
+          marginPx={state.marginPx}
+          multiSize={state.multiSize}
+          background={state.background}
+          onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}
+          onCustomUpload={handleCustomUpload}
+        />
+        <QrPreview
+          qrCanvas={qrCanvas}
+          posterCanvas={posterCanvas}
+          scanResults={scanResults}
+          multiSize={state.multiSize}
+          posterSize={state.posterSize}
+          onPosterSizeChange={(s) => dispatch({ type: 'SET_POSTER_SIZE', size: s })}
+          isRendering={isRendering}
+          errorMessage={errorMessage}
+        />
+      </div>
     </main>
   );
 }
