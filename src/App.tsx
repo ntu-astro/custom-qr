@@ -6,6 +6,7 @@ import { QrPreview } from './components/QrPreview';
 import { buildMatrix } from './lib/qrMatrix';
 import { computeHalftoneTarget } from './lib/halftoneTarget';
 import { pickBestMask } from './lib/maskOptimizer';
+import { flipModulesByCodeword } from './lib/moduleFlipper';
 import { render as renderHalftone } from './lib/halftoneRenderer';
 import { composePoster } from './lib/composer';
 import { verify } from './lib/scanVerifier';
@@ -72,8 +73,8 @@ export default function App() {
             : findTemplate(state.templateId).sourcePath;
         const imageData = await loadImageData(sourcePath);
 
-        // Stage 2: pick the QR mask whose post-mask bit pattern best matches the
-        // dithered silhouette, weighted by per-module importance.
+        // Stage 2: pick the QR mask whose post-mask bit pattern best matches
+        // the dithered silhouette, weighted by per-module importance.
         const halftoneTarget = computeHalftoneTarget(
           imageData,
           baseMatrix.size,
@@ -81,7 +82,9 @@ export default function App() {
           baseMatrix.importance,
         );
         const { best } = pickBestMask(url, halftoneTarget);
-        const matrix = best.matrix;
+
+        // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
+        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
 
         const qr = renderHalftone(matrix, imageData, {
           marginPx: state.marginPx,
