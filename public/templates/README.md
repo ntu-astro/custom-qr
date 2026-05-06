@@ -12,9 +12,9 @@ Each file here is a halftone *source* for the QR generator. They are sampled per
 
 | File | Source | Notes |
 |---|---|---|
-| `saturn.svg` | hand-drawn | ringed planet silhouette |
-| `orion.svg` | hand-authored | constellation, 7 stars + belt + connectors |
-| `scorpius.svg` | hand-authored | constellation, 11 stars in J-curve with stinger |
+| `earth.svg` | hand-authored | Apollo Blue Marble — Africa-centered, multi-color (oceans, continents, ice cap) |
+| `orion.svg` | hand-authored | full asterism, 10 stars (head, shoulders, belt, sword, legs) |
+| `scorpius.svg` | hand-authored | constellation, 13 stars in J-curve, routed clear of QR finders + alignment |
 | `crux.svg` | hand-authored | constellation, 5-star Southern Cross |
 | `sagittarius-teapot.svg` | hand-authored | asterism within Sagittarius, 8-star teapot |
 | `ntu-astro-mark.svg` | hand-traced from `logo-1.jpeg` | club monogram, halftones cleanly |

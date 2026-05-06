@@ -9,7 +9,7 @@
     <line x1="310" y1="200" x2="350" y2="340"/>           <!-- Phi - Ascella (body right) -->
     <line x1="200" y1="360" x2="350" y2="340"/>           <!-- Kaus Australis - Ascella (body bottom) -->
     <!-- spout -->
-    <line x1="200" y1="360" x2="90"  y2="290"/>           <!-- Kaus Australis - Alnasl -->
+    <line x1="170" y1="200" x2="90"  y2="290"/>           <!-- Kaus Media - Alnasl -->
     <!-- handle (Phi -> Nunki -> Tau -> Ascella) -->
     <line x1="310" y1="200" x2="430" y2="250"/>           <!-- Phi - Nunki -->
     <line x1="430" y1="250" x2="430" y2="320"/>           <!-- Nunki - Tau -->

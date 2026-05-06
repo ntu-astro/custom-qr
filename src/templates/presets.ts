@@ -2,10 +2,10 @@ import type { TemplatePreset } from '../types';
 
 export const TEMPLATES: TemplatePreset[] = [
   {
-    id: 'saturn',
-    displayName: 'Saturn',
-    sourcePath: '/templates/saturn.svg',
-    palette: { accent: '#d8a36b', fallbackDark: '#211922' },
+    id: 'earth',
+    displayName: 'Earth',
+    sourcePath: '/templates/earth.svg',
+    palette: { accent: '#2c6b9c', fallbackDark: '#211922' },
   },
   {
     id: 'orion',

@@ -1,31 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <g fill="#211922" stroke="#211922" stroke-width="18" stroke-linecap="round">
+    <!-- head triangle (top, between TL and TR finder zones) -->
+    <line x1="215" y1="90"  x2="265" y2="65"/>            <!-- Pi - Dschubba -->
+    <line x1="265" y1="65"  x2="320" y2="85"/>            <!-- Dschubba - Beta -->
     <!-- head -> body -->
-    <line x1="60" y1="70" x2="130" y2="55"/>              <!-- Pi - Dschubba -->
-    <line x1="130" y1="55" x2="140" y2="150"/>            <!-- Dschubba - Antares -->
-    <!-- body chain -->
-    <line x1="140" y1="150" x2="150" y2="220"/>           <!-- Antares - Tau -->
-    <line x1="150" y1="220" x2="140" y2="290"/>           <!-- Tau - Epsilon -->
-    <line x1="140" y1="290" x2="170" y2="350"/>           <!-- Epsilon - Mu -->
-    <!-- tail curve -->
-    <line x1="170" y1="350" x2="260" y2="420"/>           <!-- Mu - Eta -->
-    <line x1="260" y1="420" x2="350" y2="430"/>           <!-- Eta - Theta -->
-    <line x1="350" y1="430" x2="430" y2="380"/>           <!-- Theta - Kappa -->
-    <!-- stinger -->
-    <line x1="430" y1="380" x2="445" y2="305"/>           <!-- Kappa - Shaula -->
-    <line x1="445" y1="305" x2="450" y2="270"/>           <!-- Shaula - Lesath -->
+    <line x1="265" y1="65"  x2="250" y2="200"/>           <!-- Dschubba - Antares -->
+    <!-- body chain (left of center, going down) -->
+    <line x1="250" y1="200" x2="245" y2="270"/>           <!-- Antares - Tau -->
+    <line x1="245" y1="270" x2="235" y2="340"/>           <!-- Tau - Epsilon -->
+    <line x1="235" y1="340" x2="235" y2="405"/>           <!-- Epsilon - Mu -->
+    <!-- tail bend (foot of J, going east below alignment) -->
+    <line x1="235" y1="405" x2="305" y2="454"/>           <!-- Mu - Eta -->
+    <line x1="305" y1="454" x2="370" y2="454"/>           <!-- Eta - Theta -->
+    <!-- curl around alignment (Iota routes east of alignment box) -->
+    <line x1="370" y1="454" x2="450" y2="450"/>           <!-- Theta - Iota -->
+    <line x1="450" y1="450" x2="453" y2="380"/>           <!-- Iota - Kappa -->
+    <!-- stinger (rising in upper-right corridor, between TR finder and alignment) -->
+    <line x1="453" y1="380" x2="445" y2="280"/>           <!-- Kappa - Shaula -->
+    <line x1="445" y1="280" x2="450" y2="230"/>           <!-- Shaula - Lesath -->
   </g>
   <g fill="#211922">
-    <circle cx="60"  cy="70"  r="18"/>                    <!-- Pi Sco, mag 2.9 -->
-    <circle cx="130" cy="55"  r="24"/>                    <!-- Dschubba, mag 2.3 -->
-    <circle cx="140" cy="150" r="32"/>                    <!-- Antares, mag 1.0 -->
-    <circle cx="150" cy="220" r="18"/>                    <!-- Tau, mag 2.8 -->
-    <circle cx="140" cy="290" r="24"/>                    <!-- Epsilon, mag 2.3 -->
-    <circle cx="170" cy="350" r="18"/>                    <!-- Mu, mag 3.0 -->
-    <circle cx="260" cy="420" r="18"/>                    <!-- Eta, mag 3.3 -->
-    <circle cx="350" cy="430" r="24"/>                    <!-- Theta, mag 1.9 -->
-    <circle cx="430" cy="380" r="24"/>                    <!-- Kappa, mag 2.4 -->
-    <circle cx="445" cy="305" r="24"/>                    <!-- Shaula, mag 1.6 -->
-    <circle cx="450" cy="270" r="18"/>                    <!-- Lesath, mag 2.7 -->
+    <circle cx="215" cy="90"  r="18"/>                    <!-- Pi Sco, mag 2.9 -->
+    <circle cx="265" cy="65"  r="24"/>                    <!-- Dschubba (delta), mag 2.3 -->
+    <circle cx="320" cy="85"  r="24"/>                    <!-- Beta (Acrab), mag 2.5 -->
+    <circle cx="250" cy="200" r="32"/>                    <!-- Antares (alpha), mag 1.0 -->
+    <circle cx="245" cy="270" r="18"/>                    <!-- Tau, mag 2.8 -->
+    <circle cx="235" cy="340" r="24"/>                    <!-- Epsilon, mag 2.3 -->
+    <circle cx="235" cy="405" r="18"/>                    <!-- Mu, mag 3.0 -->
+    <circle cx="305" cy="454" r="18"/>                    <!-- Eta, mag 3.3 -->
+    <circle cx="370" cy="454" r="18"/>                    <!-- Theta, mag 1.9 (downsized to clear alignment) -->
+    <circle cx="450" cy="450" r="18"/>                    <!-- Iota, mag 3.0 (routes curl east of alignment) -->
+    <circle cx="453" cy="380" r="18"/>                    <!-- Kappa, mag 2.4 (downsized to clear alignment) -->
+    <circle cx="445" cy="280" r="24"/>                    <!-- Shaula (lambda), mag 1.6 -->
+    <circle cx="450" cy="230" r="18"/>                    <!-- Lesath (upsilon), mag 2.7 -->
   </g>
 </svg>
