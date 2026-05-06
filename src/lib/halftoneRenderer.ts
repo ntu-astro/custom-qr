@@ -223,7 +223,7 @@ function eachCell(
         y >= marginCells && y < marginCells + matrix.size;
       const mx = x - marginCells;
       const my = y - marginCells;
-      const isReserved = inMatrix && matrix.reservedMask[my][mx];
+      const isReserved = inMatrix && matrix.importance[my][mx] === 0;
       const isModuleDark = inMatrix && matrix.modules[my][mx];
       visit({ px, py, sample, inMatrix, mx, my, isReserved, isModuleDark });
     }

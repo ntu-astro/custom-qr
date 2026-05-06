@@ -63,7 +63,7 @@ describe('render — reserved-cell suppression', () => {
   // fill that ring with halftone dots and merge it with adjacent dark cells,
   // breaking the finder.
   it('keeps reserved-but-light cells as background under a dark source', () => {
-    expect(matrix.reservedMask[3][1]).toBe(true);
+    expect(matrix.importance[3][1]).toBe(0);
     expect(matrix.modules[3][1]).toBe(false);
 
     const canvas = render(matrix, blackImageData(256, 256), {
@@ -86,7 +86,7 @@ describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
   function findNonReservedLightModule(): [number, number] {
     for (let my = 9; my < matrix.size - 9; my++) {
       for (let mx = 9; mx < matrix.size - 9; mx++) {
-        if (!matrix.modules[my][mx] && !matrix.reservedMask[my][mx]) {
+        if (!matrix.modules[my][mx] && matrix.importance[my][mx] > 0) {
           return [mx, my];
         }
       }
@@ -97,7 +97,7 @@ describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
   function findNonReservedDarkModule(): [number, number] {
     for (let my = 9; my < matrix.size - 9; my++) {
       for (let mx = 9; mx < matrix.size - 9; mx++) {
-        if (matrix.modules[my][mx] && !matrix.reservedMask[my][mx]) {
+        if (matrix.modules[my][mx] && matrix.importance[my][mx] > 0) {
           return [mx, my];
         }
       }

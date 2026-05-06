@@ -18,67 +18,70 @@ function versionFromSize(size: number): number {
   return (size - 17) / 4;
 }
 
-function setReservedRect(mask: boolean[][], x: number, y: number, w: number, h: number): void {
+function paintRect(map: number[][], value: number, x: number, y: number, w: number, h: number): void {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
       const yy = y + dy;
       const xx = x + dx;
-      if (yy >= 0 && yy < mask.length && xx >= 0 && xx < mask[0].length) {
-        mask[yy][xx] = true;
+      if (yy >= 0 && yy < map.length && xx >= 0 && xx < map[0].length) {
+        map[yy][xx] = value;
       }
     }
   }
 }
 
-function buildReservedMask(size: number): boolean[][] {
-  const mask: boolean[][] = Array.from({ length: size }, () =>
-    new Array<boolean>(size).fill(false),
+/** Build the per-module importance map (Chu et al. 2013 §4.1).
+ *  Function-pattern modules (finder, separator, timing, alignment, format-info,
+ *  version-info) get importance 0 — they are structurally required and excluded
+ *  from any optimisation.
+ *  Data modules get importance 1.0 by default; the image-weighted version is
+ *  applied separately by the importance-map pre-pass once the dithered target
+ *  is available. */
+function buildImportanceMap(size: number): number[][] {
+  const map: number[][] = Array.from({ length: size }, () =>
+    new Array<number>(size).fill(1),
   );
 
-  // Three finder patterns + their separators (one-pixel quiet ring)
   const span = FINDER_SIZE + SEPARATOR;
-  setReservedRect(mask, 0, 0, span, span);                       // top-left
-  setReservedRect(mask, size - span, 0, span, span);             // top-right
-  setReservedRect(mask, 0, size - span, span, span);             // bottom-left
+  paintRect(map, 0, 0, 0, span, span);                       // top-left finder
+  paintRect(map, 0, size - span, 0, span, span);             // top-right finder
+  paintRect(map, 0, 0, size - span, span, span);             // bottom-left finder
 
   // Timing patterns (row 6 and column 6)
   for (let i = 0; i < size; i++) {
-    mask[6][i] = true;
-    mask[i][6] = true;
+    map[6][i] = 0;
+    map[i][6] = 0;
   }
 
-  // Format-info bands (15 modules each, around top-left and split between top-right + bottom-left)
+  // Format-info bands
   for (let i = 0; i <= 8; i++) {
-    mask[8][i] = true;
-    mask[i][8] = true;
-    mask[8][size - 1 - i] = true;
-    mask[size - 1 - i][8] = true;
+    map[8][i] = 0;
+    map[i][8] = 0;
+    map[8][size - 1 - i] = 0;
+    map[size - 1 - i][8] = 0;
   }
 
   const version = versionFromSize(size);
-  // Alignment patterns
   if (version >= 2 && version < ALIGNMENT_PATTERN_TABLE.length) {
     const positions = ALIGNMENT_PATTERN_TABLE[version];
     for (const r of positions) {
       for (const c of positions) {
-        // Skip alignment patterns that overlap finder patterns
         const overlapsFinder =
           (r <= 8 && c <= 8) ||
           (r <= 8 && c >= size - 9) ||
           (r >= size - 9 && c <= 8);
         if (overlapsFinder) continue;
-        setReservedRect(mask, c - 2, r - 2, 5, 5);
+        paintRect(map, 0, c - 2, r - 2, 5, 5);
       }
     }
   }
 
-  // Version-info bands for v7+
   if (version >= 7) {
-    setReservedRect(mask, size - 11, 0, 3, 6);
-    setReservedRect(mask, 0, size - 11, 6, 3);
+    paintRect(map, 0, size - 11, 0, 3, 6);
+    paintRect(map, 0, 0, size - 11, 6, 3);
   }
 
-  return mask;
+  return map;
 }
 
 export function buildMatrix(text: string): QRMatrix {
@@ -106,6 +109,6 @@ export function buildMatrix(text: string): QRMatrix {
   return {
     size,
     modules,
-    reservedMask: buildReservedMask(size),
+    importance: buildImportanceMap(size),
   };
 }

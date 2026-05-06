@@ -21,8 +21,15 @@ export interface TemplatePreset {
 
 export interface QRMatrix {
   size: number;
+  /** QR module values, true = dark. Mutated by mask optimisation + module flipping. */
   modules: boolean[][];
-  reservedMask: boolean[][];
+  /** Per-module importance weight (Chu et al. 2013):
+   *   - 0 = structurally reserved (finder/timing/alignment/format/version);
+   *         excluded from optimisation, full-cell stamp in the renderer.
+   *   - 0..1 = data module — higher means "preserve this position's
+   *         agreement with the source image". Used by mask scoring and the
+   *         per-block flip selector. Default 1.0 before image-weighting. */
+  importance: number[][];
 }
 
 export interface ScanResult {
