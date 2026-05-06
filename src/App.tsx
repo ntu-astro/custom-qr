@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import type { ScanResult } from './types';
-import { DEFAULT_PLACEHOLDER_URL } from './types';
 import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
@@ -135,9 +134,11 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-6xl p-6 sm:p-10">
-      <header className="mb-8 flex items-baseline justify-between">
+      <header className="mb-8 flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-heading">Astro QR</h1>
-        <p className="text-sm text-olivegray">NTU Astronomical Society · {DEFAULT_PLACEHOLDER_URL}</p>
+        <p className="text-sm text-olivegray">
+          Halftone-style QR codes for NTU Astronomical Society. No backend, no tracking.
+        </p>
       </header>
 
       <div className="grid gap-8 md:grid-cols-2">
