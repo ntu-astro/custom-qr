@@ -18,6 +18,14 @@ function whiteImageData(w: number, h: number): ImageData {
   return new ImageData(data, w, h);
 }
 
+function nearlyWhite(w: number, h: number): ImageData {
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 250; data[i + 1] = 250; data[i + 2] = 250; data[i + 3] = 255;
+  }
+  return new ImageData(data, w, h);
+}
+
 describe('render — hybrid', () => {
   const matrix = buildMatrix('https://ntuastro.com');
 
@@ -59,5 +67,25 @@ describe('render — hybrid', () => {
     const ctx = canvas.getContext('2d')!;
     const px = ctx.getImageData(2, 2, 1, 1).data;
     expect(px[0]).toBeGreaterThan(200);
+  });
+});
+
+describe('render — variable', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  it('keeps dark data modules visibly filled even when source is bright', () => {
+    const canvas = render(matrix, nearlyWhite(256, 256), {
+      style: 'variable',
+      density: 55,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    const cx = Math.floor(cellPx * 0.5);
+    const cy = Math.floor(cellPx * 0.5);
+    const px = ctx.getImageData(cx, cy, 1, 1).data;
+    const lum = (px[0] + px[1] + px[2]) / 3;
+    expect(lum).toBeLessThan(120);
   });
 });

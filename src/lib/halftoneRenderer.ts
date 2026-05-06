@@ -94,6 +94,57 @@ function renderHybrid(
   }
 }
 
+function renderVariable(
+  ctx: CanvasRenderingContext2D,
+  matrix: QRMatrix,
+  source: ImageData,
+  density: number,
+  marginCells: number,
+  cellPx: number,
+) {
+  const totalCells = matrix.size + 2 * marginCells;
+  const densityFactor = density / 100;
+  const dataMinRadiusFactor = 0.6;
+
+  for (let y = 0; y < totalCells; y++) {
+    for (let x = 0; x < totalCells; x++) {
+      const px = x * cellPx;
+      const py = y * cellPx;
+      const u = (x + 0.5) / totalCells;
+      const v = (y + 0.5) / totalCells;
+      const sample = samplePixel(source, u, v);
+
+      const inMatrix =
+        x >= marginCells && x < marginCells + matrix.size &&
+        y >= marginCells && y < marginCells + matrix.size;
+      const mx = x - marginCells;
+      const my = y - marginCells;
+      const isDarkData = inMatrix && matrix.modules[my][mx];
+
+      const darkness = 1 - sample.brightness;
+      let radiusFactor = Math.sqrt(darkness * densityFactor);
+      if (isDarkData) {
+        radiusFactor = Math.max(radiusFactor, dataMinRadiusFactor);
+      }
+      if (radiusFactor <= 0.02) continue;
+
+      const radius = (cellPx / 2) * Math.min(1, radiusFactor);
+      let { r, g, b } = sample;
+      if (isDarkData) {
+        if (sample.a < 0.05) {
+          r = 0; g = 0; b = 0;
+        } else {
+          ({ r, g, b } = clampLuminosity(r, g, b));
+        }
+      }
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.arc(px + cellPx / 2, py + cellPx / 2, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
 export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions): HTMLCanvasElement {
   const cellPx = CELL_PX;
   const marginCells = Math.max(0, Math.round(opts.marginPx / cellPx));
@@ -113,6 +164,8 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
       renderHybrid(ctx, matrix, source, opts.density, marginCells, cellPx);
       break;
     case 'variable':
+      renderVariable(ctx, matrix, source, opts.density, marginCells, cellPx);
+      break;
     case 'stippling':
     case 'qrgrid':
       // Implemented in subsequent tasks; fall back to hybrid for now.
