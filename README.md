@@ -1,73 +1,53 @@
-# React + TypeScript + Vite
+# Astro QR — Halftone QR Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://ntuastro.com).
 
-Currently, two official plugins are available:
+## Features
+- 7 built-in templates (Saturn, Telescope, Galaxy Spiral, Comet, Observatory Dome, NTU Astro mark, NTU Astro scene)
+- Upload your own PNG/SVG silhouette (≤ 2MB)
+- 4 halftone styles: Hybrid (default), Variable dot size, Stippling, QR-grid dithered
+- Adjustable density and margin
+- Image-derived dot color with luminosity-clamped QR data modules
+- Live scan verification (screen-size, optional print-size 200×200px)
+- Three exports: QR-only PNG, QR-only SVG (PNG-embedded wrapper), Poster PNG (1080², 1080×1920, A4, custom)
+- Fully client-side. No tracking. No backend.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Local development
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev         # vite dev server on :5173
+npm test            # vitest run, ~18 tests
+npm run lint        # tsc --noEmit
+npm run build       # → dist/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Asset prep
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Two NTU templates ship as best-effort placeholders. Maintainers can regenerate them from updated source logos — see [`public/templates/README.md`](public/templates/README.md).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Deploy
+
+Hosted on Cloudflare Pages.
+
+```bash
+npx wrangler login        # one-time
+npm run build
+npm run deploy
 ```
+
+Or connect this repo to a Cloudflare Pages project with build command `npm run build` and output directory `dist`.
+
+## Architecture
+
+- `src/lib/qrMatrix.ts` — QR module matrix + reserved mask
+- `src/lib/halftoneRenderer.ts` — 4 halftone styles, pure function
+- `src/lib/composer.ts` — poster layout
+- `src/lib/scanVerifier.ts` — `jsqr` at multiple sizes
+- `src/templates/presets.ts` — 7-template registry
+- `src/components/*` — React UI
+- `src/App.tsx` + `src/appReducer.ts` — state + pipeline orchestration
+
+## License
+
+Internal NTU Astronomical Society project. Logo assets © NTU Astronomical Society.
