@@ -155,6 +155,51 @@ function renderStippling(
   }
 }
 
+function renderQrGrid(
+  ctx: CanvasRenderingContext2D,
+  matrix: QRMatrix,
+  source: ImageData,
+  density: number,
+  marginCells: number,
+  cellPx: number,
+) {
+  const totalCells = matrix.size + 2 * marginCells;
+  const threshold = 1 - density / 100;
+
+  for (let y = 0; y < totalCells; y++) {
+    for (let x = 0; x < totalCells; x++) {
+      const px = x * cellPx;
+      const py = y * cellPx;
+      const u = (x + 0.5) / totalCells;
+      const v = (y + 0.5) / totalCells;
+      const sample = samplePixel(source, u, v);
+
+      const inMatrix =
+        x >= marginCells && x < marginCells + matrix.size &&
+        y >= marginCells && y < marginCells + matrix.size;
+      const mx = x - marginCells;
+      const my = y - marginCells;
+
+      const fill =
+        (inMatrix && matrix.modules[my][mx]) ||
+        sample.brightness < threshold;
+      if (!fill) continue;
+
+      const isDark = inMatrix && matrix.modules[my][mx];
+      let { r, g, b } = sample;
+      if (isDark) {
+        if (sample.a < 0.05) {
+          r = 0; g = 0; b = 0;
+        } else {
+          ({ r, g, b } = clampLuminosity(r, g, b));
+        }
+      }
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(px, py, cellPx, cellPx);
+    }
+  }
+}
+
 function renderVariable(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
@@ -231,8 +276,7 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
       renderStippling(ctx, matrix, source, opts.density, marginCells, cellPx);
       break;
     case 'qrgrid':
-      // Implemented in subsequent tasks; fall back to hybrid for now.
-      renderHybrid(ctx, matrix, source, opts.density, marginCells, cellPx);
+      renderQrGrid(ctx, matrix, source, opts.density, marginCells, cellPx);
       break;
     default: {
       const _exhaust: never = opts.style;

@@ -108,3 +108,23 @@ describe('render — stippling', () => {
     expect(avg).toBeLessThan(220);
   });
 });
+
+describe('render — qrgrid', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  it('renders cells as solid blocks (no sub-cell halftone)', () => {
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'qrgrid',
+      density: 50,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    const a = ctx.getImageData(2, 2, 1, 1).data;
+    const b = ctx.getImageData(Math.floor(cellPx) - 2, Math.floor(cellPx) - 2, 1, 1).data;
+    expect(a[0]).toBe(b[0]);
+    expect(a[1]).toBe(b[1]);
+    expect(a[2]).toBe(b[2]);
+  });
+});
