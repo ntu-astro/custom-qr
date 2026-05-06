@@ -3,11 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": { "node": ">=18.18.0" },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -b --noEmit"
   },
   "dependencies": {
     "jsqr": "^1.4.0",
