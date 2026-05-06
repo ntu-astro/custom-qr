@@ -128,3 +128,47 @@ describe('render — qrgrid', () => {
     expect(a[2]).toBe(b[2]);
   });
 });
+
+describe('render — reserved-cell suppression', () => {
+  const matrix = buildMatrix('https://ntuastro.com');
+
+  // The top-left finder pattern occupies modules (0..6, 0..6). Inside it, the white
+  // ring at module (1, 3) is BOTH structurally reserved AND a light cell. Without
+  // suppression, a fully-black source image at high density would fill that ring
+  // with halftone dots and merge it with adjacent dark cells, breaking the finder.
+  it('keeps reserved-but-light cells as background under a dark source (hybrid)', () => {
+    expect(matrix.reservedMask[3][1]).toBe(true);
+    expect(matrix.modules[3][1]).toBe(false);
+
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'hybrid',
+      density: 80,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    // Sample the centre of module (1, 3) — column 1, row 3.
+    const cx = Math.floor(cellPx * 1.5);
+    const cy = Math.floor(cellPx * 3.5);
+    const px = ctx.getImageData(cx, cy, 1, 1).data;
+    const lum = (px[0] + px[1] + px[2]) / 3;
+    expect(lum).toBeGreaterThan(200);
+  });
+
+  it('keeps reserved-but-light cells as background under a dark source (qrgrid)', () => {
+    const canvas = render(matrix, blackImageData(256, 256), {
+      style: 'qrgrid',
+      density: 80,
+      marginPx: 0,
+      background: '#ffffff',
+    });
+    const ctx = canvas.getContext('2d')!;
+    const cellPx = canvas.width / matrix.size;
+    const cx = Math.floor(cellPx * 1.5);
+    const cy = Math.floor(cellPx * 3.5);
+    const px = ctx.getImageData(cx, cy, 1, 1).data;
+    const lum = (px[0] + px[1] + px[2]) / 3;
+    expect(lum).toBeGreaterThan(200);
+  });
+});
