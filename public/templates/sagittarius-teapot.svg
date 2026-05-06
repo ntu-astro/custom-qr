@@ -19,7 +19,7 @@
     <circle cx="220" cy="95"  r="18"/>                    <!-- Kaus Borealis (lambda), mag 2.8 -->
     <circle cx="170" cy="200" r="18"/>                    <!-- Kaus Media (delta), mag 2.7 -->
     <circle cx="310" cy="200" r="18"/>                    <!-- Phi Sgr, mag 3.2 -->
-    <circle cx="200" cy="360" r="32"/>                    <!-- Kaus Australis (epsilon), mag 1.9 -->
+    <circle cx="200" cy="360" r="24"/>                    <!-- Kaus Australis (epsilon), mag 1.9 -->
     <circle cx="350" cy="340" r="18"/>                    <!-- Ascella (zeta), mag 2.6 -->
     <circle cx="90"  cy="290" r="18"/>                    <!-- Alnasl (gamma), mag 3.0 (spout tip) -->
     <circle cx="430" cy="250" r="24"/>                    <!-- Nunki (sigma), mag 2.0 (handle top) -->
