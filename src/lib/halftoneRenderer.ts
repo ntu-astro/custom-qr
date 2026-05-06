@@ -1,4 +1,4 @@
-import type { QRMatrix, RenderOptions, HalftoneStyle } from '../types';
+import type { QRMatrix, RenderOptions } from '../types';
 
 // 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
 // The hybrid renderer uses the Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia)
@@ -230,10 +230,10 @@ function eachCell(
   }
 }
 
-/** Hybrid (default) — Chu et al. 2013 sub-pixel halftone:
- *  1. Rasterise the source at sub-pixel resolution (totalCells × 3).
+/** Chu et al. 2013 sub-pixel halftone (the only render mode):
+ *  1. Rasterise the source at sub-pixel resolution (matrix.size × 3).
  *  2. Floyd–Steinberg dither it to a binary 0/255 grid.
- *  3. Paint that as the base layer of the output canvas, tinted with the source's
+ *  3. Paint that as the base layer inside the QR data area, tinted with the source's
  *     dominant ink colour.
  *  4. For each non-reserved module, stamp the centre 1/9 sub-pixel with the QR bit
  *     (dark module → ink fill; light module → background fill). The 8 surrounding
@@ -241,7 +241,7 @@ function eachCell(
  *  5. Reserved modules (finder/timing/alignment/format/version) get a full-cell stamp
  *     so QR decoders can lock onto them reliably. The silhouette is suppressed there.
  */
-function renderHybrid(
+function renderHalftone(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
   source: ImageData,
@@ -320,131 +320,6 @@ function renderHybrid(
   });
 }
 
-function mulberry32(seed: number) {
-  return () => {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function renderStippling(
-  ctx: CanvasRenderingContext2D,
-  matrix: QRMatrix,
-  source: ImageData,
-  density: number,
-  marginCells: number,
-  cellPx: number,
-) {
-  const densityFactor = density / 100;
-  const STIPPLE_RADIUS = Math.max(1, Math.round(cellPx * 0.12));
-  const MAX_STIPPLES_PER_CELL = 16;
-  const rand = mulberry32(0xa57e3);
-
-  eachCell(matrix, source, marginCells, cellPx, (cell) => {
-    if (cell.isReserved) {
-      renderReservedCell(ctx, cell.isModuleDark, cell.sample, cell.px, cell.py, cellPx);
-      return;
-    }
-
-    if (cell.isModuleDark) {
-      const c = cell.sample.a < 0.05
-        ? { r: 0, g: 0, b: 0 }
-        : clampLuminosity(cell.sample.r, cell.sample.g, cell.sample.b);
-      ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;
-      ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
-      return;
-    }
-
-    const darkness = 1 - cell.sample.brightness;
-    const count = Math.round(darkness * densityFactor * MAX_STIPPLES_PER_CELL);
-    if (count <= 0) return;
-    ctx.fillStyle = `rgb(${cell.sample.r},${cell.sample.g},${cell.sample.b})`;
-    for (let i = 0; i < count; i++) {
-      const sx = cell.px + rand() * cellPx;
-      const sy = cell.py + rand() * cellPx;
-      ctx.beginPath();
-      ctx.arc(sx, sy, STIPPLE_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-}
-
-function renderQrGrid(
-  ctx: CanvasRenderingContext2D,
-  matrix: QRMatrix,
-  source: ImageData,
-  density: number,
-  marginCells: number,
-  cellPx: number,
-) {
-  const threshold = 1 - density / 100;
-
-  eachCell(matrix, source, marginCells, cellPx, (cell) => {
-    if (cell.isReserved) {
-      renderReservedCell(ctx, cell.isModuleDark, cell.sample, cell.px, cell.py, cellPx);
-      return;
-    }
-
-    const fill = cell.isModuleDark || cell.sample.brightness < threshold;
-    if (!fill) return;
-
-    let { r, g, b } = cell.sample;
-    if (cell.isModuleDark) {
-      if (cell.sample.a < 0.05) {
-        r = 0; g = 0; b = 0;
-      } else {
-        ({ r, g, b } = clampLuminosity(r, g, b));
-      }
-    }
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
-  });
-}
-
-function renderVariable(
-  ctx: CanvasRenderingContext2D,
-  matrix: QRMatrix,
-  source: ImageData,
-  density: number,
-  marginCells: number,
-  cellPx: number,
-) {
-  const densityFactor = density / 100;
-  const dataMinRadiusFactor = 0.6;
-
-  eachCell(matrix, source, marginCells, cellPx, (cell) => {
-    if (cell.isReserved) {
-      // Reserved cells render as squares (not circles) so finder/alignment patterns
-      // remain detectable. This is the same geometry the QR-grid style uses.
-      renderReservedCell(ctx, cell.isModuleDark, cell.sample, cell.px, cell.py, cellPx);
-      return;
-    }
-
-    const darkness = 1 - cell.sample.brightness;
-    let radiusFactor = Math.sqrt(darkness * densityFactor);
-    if (cell.isModuleDark) {
-      radiusFactor = Math.max(radiusFactor, dataMinRadiusFactor);
-    }
-    if (radiusFactor <= 0.02) return;
-
-    const radius = (cellPx / 2) * Math.min(1, radiusFactor);
-    let { r, g, b } = cell.sample;
-    if (cell.isModuleDark) {
-      if (cell.sample.a < 0.05) {
-        r = 0; g = 0; b = 0;
-      } else {
-        ({ r, g, b } = clampLuminosity(r, g, b));
-      }
-    }
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.beginPath();
-    ctx.arc(cell.px + cellPx / 2, cell.py + cellPx / 2, radius, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}
-
 export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions): HTMLCanvasElement {
   const cellPx = CELL_PX;
   const marginCells = Math.max(0, Math.round(opts.marginPx / cellPx));
@@ -458,26 +333,7 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
   ctx.imageSmoothingEnabled = false;
 
   fillBackground(ctx, sizePx, sizePx, opts.background);
-
-  switch (opts.style) {
-    case 'hybrid':
-      renderHybrid(ctx, matrix, source, marginCells, cellPx, opts.background);
-      break;
-    case 'variable':
-      renderVariable(ctx, matrix, source, opts.density, marginCells, cellPx);
-      break;
-    case 'stippling':
-      renderStippling(ctx, matrix, source, opts.density, marginCells, cellPx);
-      break;
-    case 'qrgrid':
-      renderQrGrid(ctx, matrix, source, opts.density, marginCells, cellPx);
-      break;
-    default: {
-      const _exhaust: never = opts.style;
-      void _exhaust;
-    }
-  }
-
+  renderHalftone(ctx, matrix, source, marginCells, cellPx, opts.background);
   return canvas;
 }
 
@@ -493,4 +349,3 @@ export const __internals = {
   CELL_PX,
   SUB_PX,
 };
-export type { HalftoneStyle };

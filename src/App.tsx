@@ -71,8 +71,6 @@ export default function App() {
         const imageData = await loadImageData(sourcePath);
 
         const qr = renderHalftone(matrix, imageData, {
-          style: state.style,
-          density: state.density,
           marginPx: state.marginPx,
           background: state.background,
         });
@@ -150,8 +148,6 @@ export default function App() {
           customSourceLabel={state.customSource?.filename}
           caption={state.caption}
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
-          style={state.style}
-          density={state.density}
           marginPx={state.marginPx}
           multiSize={state.multiSize}
           background={state.background}

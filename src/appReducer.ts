@@ -1,4 +1,4 @@
-import type { HalftoneStyle, PosterSize } from './types';
+import type { PosterSize } from './types';
 import { DEFAULT_PLACEHOLDER_URL } from './types';
 import { DEFAULT_TEMPLATE_ID } from './templates/presets';
 
@@ -13,8 +13,6 @@ export interface AppState {
   customSource: CustomSource | null;
   caption: string;
   posterSize: PosterSize;
-  style: HalftoneStyle;
-  density: number;
   marginPx: number;
   multiSize: boolean;
   background: string;
@@ -30,8 +28,6 @@ export type AppAction =
   | {
       type: 'PATCH_ADVANCED';
       patch: Partial<{
-        style: HalftoneStyle;
-        density: number;
         marginPx: number;
         multiSize: boolean;
         background: string;
@@ -44,8 +40,6 @@ export const initialState: AppState = {
   customSource: null,
   caption: '',
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
-  style: 'hybrid',
-  density: 55,
   marginPx: 32,
   multiSize: false,
   background: 'transparent',

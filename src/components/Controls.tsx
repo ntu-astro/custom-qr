@@ -1,7 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { TemplatePicker } from './TemplatePicker';
 import { AdvancedOptions } from './AdvancedOptions';
-import type { HalftoneStyle } from '../types';
 
 export interface ControlsProps {
   url: string;
@@ -14,15 +13,11 @@ export interface ControlsProps {
   caption: string;
   onCaptionChange: (v: string) => void;
 
-  style: HalftoneStyle;
-  density: number;
   marginPx: number;
   multiSize: boolean;
   background: string;
   onAdvancedChange: (
     patch: Partial<{
-      style: HalftoneStyle;
-      density: number;
       marginPx: number;
       multiSize: boolean;
       background: string;
@@ -90,8 +85,6 @@ export function Controls(props: ControlsProps) {
         </summary>
         <div className="mt-4">
           <AdvancedOptions
-            style={props.style}
-            density={props.density}
             marginPx={props.marginPx}
             multiSize={props.multiSize}
             background={props.background}

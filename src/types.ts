@@ -1,5 +1,3 @@
-export type HalftoneStyle = 'hybrid' | 'variable' | 'stippling' | 'qrgrid';
-
 export type PosterSize =
   | { kind: 'igPost'; width: 1080; height: 1080 }
   | { kind: 'igStory'; width: 1080; height: 1920 }
@@ -34,9 +32,6 @@ export interface ScanResult {
 }
 
 export interface RenderOptions {
-  style: HalftoneStyle;
-  /** 30..80 — non-data fill density, where higher = denser dots. */
-  density: number;
   /** 0..60 — pixels of quiet zone in the output canvas. */
   marginPx: number;
   /** Hex string or 'transparent'. */
