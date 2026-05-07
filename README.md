@@ -35,7 +35,7 @@ Two NTU templates ship as best-effort placeholders. Maintainers can regenerate t
 
 ## Deploy
 
-Deployed as a Cloudflare Worker with [static assets](https://developers.cloudflare.com/workers/static-assets/) (`[assets]` directory in [`wrangler.toml`](wrangler.toml), SPA fallback). Cloudflare Workers Builds auto-deploys from `main` via the GitHub integration (configured in the dashboard, not in this repo). For one-off manual deploys:
+Deployed as a Cloudflare Worker with [static assets](https://developers.cloudflare.com/workers/static-assets/) (`assets.directory` in [`wrangler.jsonc`](wrangler.jsonc), SPA fallback). Cloudflare Workers Builds auto-deploys from `main` via the GitHub integration (configured in the dashboard, not in this repo). For one-off manual deploys:
 
 ```bash
 npx wrangler login        # one-time

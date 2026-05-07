@@ -13,11 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped Node to 24.15.0 LTS (Krypton) in `.nvmrc` and `package.json#engines` to
   `>=22.0.0`. Wrangler ≥4.88, miniflare, and `@cloudflare/kv-asset-handler` all
   require Node ≥22; the prior `.nvmrc=20` blocked `npm run deploy` on Cloudflare Pages.
-- Migrated `wrangler.toml` from Pages-style (`pages_build_output_dir`) to a
-  Workers static-assets config (`[assets]` directory + SPA `not_found_handling`).
+- Migrated wrangler config from Pages-style (`pages_build_output_dir`) to a
+  Workers static-assets shape (`assets.directory` + SPA `not_found_handling`).
   The Cloudflare project is a Worker named `custom-qr`, not a Pages project, and
   CF Builds calls `wrangler deploy` (not `wrangler pages deploy`). Updated the
   npm `deploy` script accordingly. README + CLAUDE.md follow.
+- Renamed `wrangler.toml` → `wrangler.jsonc` per Cloudflare's recommendation for
+  new projects ("some newer Wrangler features will only be available to projects
+  using a JSON config file" — Wrangler configuration docs). The `$schema` ref
+  to `node_modules/wrangler/config-schema.json` enables editor IntelliSense.
 
 ## [0.1.0] - 2026-05-07
 
