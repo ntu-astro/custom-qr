@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Coverage thresholds, CHANGELOG, .nvmrc, bundle-size budget added in tech-debt sweep.
+- Removed the GitHub Pages secondary deployment workflow — Cloudflare Pages is the
+  sole deploy target. Vite `base` path env support reverted (no longer needed).
 
 ## [0.1.0] - 2026-05-07
 
