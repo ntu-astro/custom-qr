@@ -34,11 +34,10 @@ import {
  *  paper budgets 0.49 leaving 1 unit of theoretical safety. In practice jsqr
  *  (used in jsdom for tests + as our preview-time scan badge) is markedly
  *  stricter than camera-based decoders — even a single over-budget flip
- *  cascades through the locator detection. We default to 0.20 (~10 % of
+ *  cascades through the locator detection. We default to 0.15 (~7.5 % of
  *  modules per block) which empirically keeps jsqr happy under both white
- *  and silhouette sources at every supported version. Real camera scans
- *  should still resolve at this budget; raise via the option arg if you've
- *  tested it on a phone and want more visual punch. */
+ *  and silhouette sources at every supported version. Raise via the option
+ *  arg if you've tested it on a phone and want more visual punch. */
 const DEFAULT_ECC_BUDGET_RATIO = 0.15;
 
 interface ModulePosition { y: number; x: number }
@@ -68,7 +67,7 @@ export interface FlipResult {
 
 export interface FlipOptions {
   /** Override the per-block flip budget as a fraction of ecCount.
-   *  Range 0..0.49. Default DEFAULT_ECC_BUDGET_RATIO (0.20). */
+   *  Range 0..0.49. Default DEFAULT_ECC_BUDGET_RATIO (0.15). */
   budgetRatio?: number;
 }
 

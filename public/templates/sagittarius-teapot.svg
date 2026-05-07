@@ -1,28 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Sagittarius Teapot asterism (J2000), sky-correct: north up, east left.
+    Centred on (256, 256) at 30 px per degree of dec; RA scaled by
+    cos(-29.9 deg)=0.867 so 1h RA = 390 px (matches 13.0 deg of arc).
+    In sky-correct orientation the spout (gamma Sgr) points WEST = right of
+    canvas; the handle (sigma, tau, zeta) sits to the EAST = left.
+  -->
   <g fill="#211922" stroke="#211922" stroke-width="18" stroke-linecap="round">
-    <!-- lid (triangle) -->
-    <line x1="220" y1="95"  x2="170" y2="200"/>           <!-- Kaus Borealis - Kaus Media -->
-    <line x1="220" y1="95"  x2="310" y2="200"/>           <!-- Kaus Borealis - Phi -->
-    <line x1="170" y1="200" x2="310" y2="200"/>           <!-- Kaus Media - Phi (lid base / body top) -->
-    <!-- body sides + bottom -->
-    <line x1="170" y1="200" x2="200" y2="360"/>           <!-- Kaus Media - Kaus Australis (body left) -->
-    <line x1="310" y1="200" x2="350" y2="340"/>           <!-- Phi - Ascella (body right) -->
-    <line x1="200" y1="360" x2="350" y2="340"/>           <!-- Kaus Australis - Ascella (body bottom) -->
-    <!-- spout -->
-    <line x1="170" y1="200" x2="90"  y2="290"/>           <!-- Kaus Media - Alnasl -->
-    <!-- handle (Phi -> Nunki -> Tau -> Ascella) -->
-    <line x1="310" y1="200" x2="430" y2="250"/>           <!-- Phi - Nunki -->
-    <line x1="430" y1="250" x2="430" y2="320"/>           <!-- Nunki - Tau -->
-    <line x1="430" y1="320" x2="350" y2="340"/>           <!-- Tau - Ascella -->
+    <!-- lid: lambda apex with delta + phi as the slanted base -->
+    <line x1="308" y1="122" x2="354" y2="254"/>          <!-- Kaus Borealis - Kaus Media (lid east) -->
+    <line x1="308" y1="122" x2="183" y2="169"/>          <!-- Kaus Borealis - Phi (lid west) -->
+    <line x1="354" y1="254" x2="183" y2="169"/>          <!-- Kaus Media - Phi (lid base / body top) -->
+    <!-- body quadrilateral (delta-epsilon-zeta-phi) -->
+    <line x1="354" y1="254" x2="333" y2="391"/>          <!-- Kaus Media - Kaus Australis (body east) -->
+    <line x1="333" y1="391" x2="83"  y2="255"/>          <!-- Kaus Australis - Ascella (body bottom) -->
+    <line x1="83"  y1="255" x2="183" y2="169"/>          <!-- Ascella - Phi (body west) -->
+    <!-- spout (gamma at the WEST tip; triangle to delta + epsilon) -->
+    <line x1="452" y1="272" x2="354" y2="254"/>          <!-- Alnasl - Kaus Media (spout top) -->
+    <line x1="452" y1="272" x2="333" y2="391"/>          <!-- Alnasl - Kaus Australis (spout bottom) -->
+    <!-- handle (phi-sigma-tau-zeta on the EAST side) -->
+    <line x1="183" y1="169" x2="131" y2="148"/>          <!-- Phi - Nunki (handle top) -->
+    <line x1="131" y1="148" x2="55"  y2="189"/>          <!-- Nunki - Tau (handle outer) -->
+    <line x1="55"  y1="189" x2="83"  y2="255"/>          <!-- Tau - Ascella (handle bottom) -->
   </g>
   <g fill="#211922">
-    <circle cx="220" cy="95"  r="18"/>                    <!-- Kaus Borealis (lambda), mag 2.8 -->
-    <circle cx="170" cy="200" r="18"/>                    <!-- Kaus Media (delta), mag 2.7 -->
-    <circle cx="310" cy="200" r="18"/>                    <!-- Phi Sgr, mag 3.2 -->
-    <circle cx="200" cy="360" r="24"/>                    <!-- Kaus Australis (epsilon), mag 1.9 -->
-    <circle cx="350" cy="340" r="18"/>                    <!-- Ascella (zeta), mag 2.6 -->
-    <circle cx="90"  cy="290" r="18"/>                    <!-- Alnasl (gamma), mag 3.0 (spout tip) -->
-    <circle cx="430" cy="250" r="24"/>                    <!-- Nunki (sigma), mag 2.0 (handle top) -->
-    <circle cx="430" cy="320" r="18"/>                    <!-- Tau Sgr, mag 3.3 (handle bottom) -->
+    <circle cx="183" cy="169" r="14"/>                   <!-- Phi Sgr, mag 3.17 -->
+    <circle cx="55"  cy="189" r="14"/>                   <!-- Tau Sgr, mag 3.32 -->
+    <circle cx="308" cy="122" r="18"/>                   <!-- Kaus Borealis (lambda), mag 2.81 -->
+    <circle cx="354" cy="254" r="18"/>                   <!-- Kaus Media (delta), mag 2.70 -->
+    <circle cx="83"  cy="255" r="18"/>                   <!-- Ascella (zeta), mag 2.59 -->
+    <circle cx="452" cy="272" r="18"/>                   <!-- Alnasl (gamma2, spout tip), mag 2.98 -->
+    <circle cx="131" cy="148" r="22"/>                   <!-- Nunki (sigma, handle top), mag 2.05 -->
+    <circle cx="333" cy="391" r="24"/>                   <!-- Kaus Australis (epsilon), mag 1.85 (brightest) -->
   </g>
 </svg>

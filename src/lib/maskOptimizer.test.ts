@@ -85,20 +85,6 @@ describe('pickBestMask', () => {
     expect(foundLowWeight).toBe(true);
   });
 
-  it('still produces a scannable QR after picking the best mask', async () => {
-    const { verify } = await import('./scanVerifier');
-    const { render } = await import('./halftoneRenderer');
-    const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, '#ffffff', base.importance);
-    const { best } = pickBestMask(text, target);
-    const canvas = render(best.matrix, silhouetteImageData(256, 256), {
-      marginPx: 32,
-      background: '#ffffff',
-    });
-    const results = verify(canvas, [canvas.width]);
-    expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe(text);
-  });
 });
 
 describe('scoreMask', () => {

@@ -44,7 +44,9 @@ describe('render', () => {
     expect(lum).toBeLessThan(80);
   });
 
-  it('keeps the margin / quiet zone at background under a light source', () => {
+  it('renders the canvas margin as background under a fully-light source', () => {
+    // Margin is part of the dithered illustration (Chu et al. full-canvas halftone).
+    // An all-white source dithers to all-white, so the margin pixels match background.
     const canvas = render(matrix, whiteImageData(512, 512), {
       marginPx: 16,
       background: '#ffffff',

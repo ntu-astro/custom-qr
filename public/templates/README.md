@@ -13,16 +13,13 @@ Each file here is a halftone *source* for the QR generator. They are sampled per
 | File | Source | Notes |
 |---|---|---|
 | `earth.svg` | hand-authored | Apollo Blue Marble — Africa-centered, multi-color (oceans, continents, ice cap) |
-| `orion.svg` | hand-authored | full asterism, 10 stars (head, shoulders, belt, sword, legs) |
-| `scorpius.svg` | hand-authored | constellation, 13 stars in J-curve, routed clear of QR finders + alignment |
+| `orion.svg` | J2000 positions, sky-correct, Stellarium "western" lines | 19 stars; closed body loop (no shoulder line, Saiph-Rigel chord), club arc east of Betelgeuse, two-arm bow from Bellatrix; **no sword** (per Stellarium) |
+| `scorpius.svg` | J2000 positions, sky-correct, Stellarium "western" lines | 13 stars; single fishhook spine through zeta1 Sco; head as a 3-prong fork from Antares; **no Lesath / Alniyat** (per Stellarium) |
 | `crux.svg` | hand-authored | constellation, 5-star Southern Cross |
-| `sagittarius-teapot.svg` | hand-authored | asterism within Sagittarius, 8-star teapot |
+| `sagittarius-teapot.svg` | J2000 positions, sky-correct, Stellarium "western" lines (teapot subset) | 8 stars: lid (lambda-delta-phi), body, gamma spout (west), Nunki/Tau/Ascella handle (east) |
 | `ntu-astro-mark.svg` | hand-traced from `logo-1.jpeg` | club monogram, halftones cleanly |
-| `ntu-astro-scene.png` | resized from `logo-2.jpeg` | moon + rocket scene |
 
 ## Re-generating club assets
-
-The two NTU files are committed as best-effort placeholders. To produce higher-fidelity versions from updated logo files:
 
 ### `ntu-astro-mark.svg` (vectorize from `logo-1.jpeg`)
 
@@ -34,17 +31,6 @@ brew install potrace imagemagick
 magick ../../logo-1.jpeg -threshold 50% -negate ntu-astro-mark.bmp
 potrace ntu-astro-mark.bmp -s -o ntu-astro-mark.svg
 rm ntu-astro-mark.bmp
-```
-
-### `ntu-astro-scene.png` (background-remove `logo-2.jpeg`)
-
-```bash
-# Install once (Python 3.10+)
-pipx install rembg[cli]
-
-# Remove background and resize
-rembg i ../../logo-2.jpeg ntu-astro-scene.png
-sips -z 2048 2048 ntu-astro-scene.png
 ```
 
 ## Adding new templates

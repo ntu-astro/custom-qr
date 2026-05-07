@@ -1,33 +1,67 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Orion (J2000), sky-correct: north up, east left.
+    Asterism connections follow Stellarium "western" sky culture
+    (stellarium-skycultures/western/index.json, CON western Ori).
+    Notable consequences vs popular drawings:
+      - no sword line (Hatysa / 42 Ori / M42 are not asterism nodes)
+      - body is a single closed 7-vertex loop with a direct Saiph-Rigel chord;
+        there is no separate "shoulders" line (Betelgeuse-Bellatrix)
+      - includes the club / raised arm to the east of Betelgeuse:
+        chi1 - nu - xi - 64 Ori, with mu Ori as the elbow chord
+      - bow connects to Bellatrix and steps through pi3-pi4-pi5*-pi6 / pi3-pi2-pi1
+        (* Stellarium uses HIP 22730 = "5 Ori" at the pi5 location; we plot pi5
+        instead because it is the visible ~mag 3.71 star at that point.)
+    Projection: scale 15 px/deg, dec_center = +5.305 deg, RA_center = 5.515 h
+    so x = 256 - (RA - 5.515) * 225, y = 256 - (Dec - 5.305) * 15.
+  -->
   <g fill="#211922" stroke="#211922" stroke-width="18" stroke-linecap="round">
-    <!-- head -->
-    <line x1="260" y1="70"  x2="170" y2="130"/>           <!-- Meissa - Betelgeuse -->
-    <line x1="260" y1="70"  x2="350" y2="145"/>           <!-- Meissa - Bellatrix -->
-    <!-- shoulders + torso -->
-    <line x1="170" y1="130" x2="350" y2="145"/>           <!-- shoulders: Betelgeuse - Bellatrix -->
-    <line x1="170" y1="130" x2="210" y2="270"/>           <!-- left torso: Betelgeuse - Alnitak -->
-    <line x1="350" y1="145" x2="305" y2="258"/>           <!-- right torso: Bellatrix - Mintaka -->
-    <!-- belt -->
-    <line x1="210" y1="270" x2="256" y2="264"/>           <!-- belt left: Alnitak - Alnilam -->
-    <line x1="256" y1="264" x2="305" y2="258"/>           <!-- belt right: Alnilam - Mintaka -->
-    <!-- sword (hanging from Alnilam) -->
-    <line x1="256" y1="264" x2="256" y2="320"/>           <!-- Alnilam - sword top -->
-    <line x1="256" y1="320" x2="256" y2="370"/>           <!-- sword top - iota Ori -->
-    <!-- legs -->
-    <line x1="210" y1="270" x2="185" y2="405"/>           <!-- left leg: Alnitak - Saiph -->
-    <line x1="305" y1="258" x2="355" y2="415"/>           <!-- right leg: Mintaka - Rigel -->
+    <!-- belt (zeta - epsilon - delta) -->
+    <line x1="219" y1="365" x2="236" y2="354"/>          <!-- Alnitak - Alnilam -->
+    <line x1="236" y1="354" x2="252" y2="340"/>          <!-- Alnilam - Mintaka -->
+    <!-- closed body loop: Betelgeuse - Alnitak - Saiph - Rigel - Mintaka - Bellatrix - Meissa - Betelgeuse -->
+    <line x1="165" y1="224" x2="219" y2="365"/>          <!-- Betelgeuse - Alnitak -->
+    <line x1="219" y1="365" x2="193" y2="481"/>          <!-- Alnitak - Saiph -->
+    <line x1="193" y1="481" x2="317" y2="459"/>          <!-- Saiph - Rigel (closes body across south) -->
+    <line x1="317" y1="459" x2="252" y2="340"/>          <!-- Rigel - Mintaka -->
+    <line x1="252" y1="340" x2="278" y2="240"/>          <!-- Mintaka - Bellatrix -->
+    <line x1="278" y1="240" x2="240" y2="187"/>          <!-- Bellatrix - Meissa -->
+    <line x1="240" y1="187" x2="165" y2="224"/>          <!-- Meissa - Betelgeuse (head Y close) -->
+    <!-- club / raised arm east of Betelgeuse -->
+    <line x1="134" y1="40"  x2="102" y2="122"/>          <!-- 64 Ori - xi Ori -->
+    <line x1="102" y1="122" x2="119" y2="114"/>          <!-- xi Ori - nu Ori -->
+    <line x1="119" y1="114" x2="168" y2="31"/>           <!-- nu Ori - chi1 Ori -->
+    <line x1="119" y1="114" x2="138" y2="191"/>          <!-- nu Ori - mu Ori (club chord) -->
+    <line x1="102" y1="122" x2="138" y2="191"/>          <!-- xi Ori - mu Ori (body chain entry) -->
+    <line x1="138" y1="191" x2="165" y2="224"/>          <!-- mu Ori - Betelgeuse (elbow to shoulder) -->
+    <!-- bow (Bellatrix to lower arc, plus upper arc from pi3) -->
+    <line x1="278" y1="240" x2="410" y2="231"/>          <!-- Bellatrix - pi3 (Tabit) -->
+    <line x1="410" y1="231" x2="405" y2="252"/>          <!-- pi3 - pi4 -->
+    <line x1="405" y1="252" x2="394" y2="299"/>          <!-- pi4 - pi5 -->
+    <line x1="394" y1="299" x2="377" y2="310"/>          <!-- pi5 - pi6 -->
+    <line x1="410" y1="231" x2="407" y2="202"/>          <!-- pi3 - pi2 -->
+    <line x1="407" y1="202" x2="391" y2="183"/>          <!-- pi2 - pi1 (bow tip north) -->
   </g>
   <g fill="#211922">
-    <!-- stars (sized by apparent magnitude) -->
-    <circle cx="260" cy="70"  r="18"/>                    <!-- Meissa (head, lambda Ori), mag 3.4 -->
-    <circle cx="170" cy="130" r="32"/>                    <!-- Betelgeuse, mag 0.5 -->
-    <circle cx="350" cy="145" r="24"/>                    <!-- Bellatrix, mag 1.6 -->
-    <circle cx="210" cy="270" r="24"/>                    <!-- Alnitak, mag 2.0 -->
-    <circle cx="256" cy="264" r="24"/>                    <!-- Alnilam, mag 1.7 -->
-    <circle cx="305" cy="258" r="24"/>                    <!-- Mintaka, mag 2.2 -->
-    <circle cx="256" cy="320" r="13"/>                    <!-- sword top (42 Ori / M42), faint -->
-    <circle cx="256" cy="370" r="18"/>                    <!-- iota Ori (sword tip), mag 2.8 -->
-    <circle cx="185" cy="405" r="24"/>                    <!-- Saiph, mag 2.1 -->
-    <circle cx="355" cy="415" r="32"/>                    <!-- Rigel, mag 0.1 -->
+    <!-- faintest first; brightest stamped last -->
+    <circle cx="134" cy="40"  r="8"/>                    <!-- 64 Ori, mag 5.13 -->
+    <circle cx="391" cy="183" r="9"/>                    <!-- pi1 Ori, mag 4.65 -->
+    <circle cx="407" cy="202" r="10"/>                   <!-- pi2 Ori, mag 4.36 -->
+    <circle cx="377" cy="310" r="10"/>                   <!-- pi6 Ori, mag 4.47 -->
+    <circle cx="119" cy="114" r="10"/>                   <!-- nu Ori, mag 4.40 -->
+    <circle cx="102" cy="122" r="10"/>                   <!-- xi Ori, mag 4.48 -->
+    <circle cx="168" cy="31"  r="10"/>                   <!-- chi1 Ori, mag 4.40 -->
+    <circle cx="138" cy="191" r="11"/>                   <!-- mu Ori, mag 4.13 -->
+    <circle cx="405" cy="252" r="12"/>                   <!-- pi4 Ori, mag 3.69 -->
+    <circle cx="394" cy="299" r="12"/>                   <!-- pi5 Ori, mag 3.71 -->
+    <circle cx="240" cy="187" r="14"/>                   <!-- Meissa (lambda Ori), mag 3.39 -->
+    <circle cx="410" cy="231" r="14"/>                   <!-- pi3 Ori (Tabit), mag 3.19 -->
+    <circle cx="252" cy="340" r="22"/>                   <!-- Mintaka (delta Ori), mag 2.23 -->
+    <circle cx="193" cy="481" r="22"/>                   <!-- Saiph (kappa Ori), mag 2.07 -->
+    <circle cx="219" cy="365" r="24"/>                   <!-- Alnitak (zeta Ori), mag 1.79 -->
+    <circle cx="236" cy="354" r="24"/>                   <!-- Alnilam (epsilon Ori), mag 1.69 -->
+    <circle cx="278" cy="240" r="24"/>                   <!-- Bellatrix (gamma Ori), mag 1.64 -->
+    <circle cx="165" cy="224" r="32"/>                   <!-- Betelgeuse (alpha Ori), mag 0.42 -->
+    <circle cx="317" cy="459" r="32"/>                   <!-- Rigel (beta Ori), mag 0.13 -->
   </g>
 </svg>

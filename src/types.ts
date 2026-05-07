@@ -39,7 +39,7 @@ export interface ScanResult {
 }
 
 export interface RenderOptions {
-  /** 0..60 — pixels of quiet zone in the output canvas. */
+  /** 0..60 — pixels of extra dithered canvas around the QR data area. */
   marginPx: number;
   /** Hex string or 'transparent'. */
   background: string;

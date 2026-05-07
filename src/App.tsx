@@ -13,6 +13,10 @@ import { verify } from './lib/scanVerifier';
 import { reducer, initialState, effectiveUrl } from './appReducer';
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+// No quiet zone — canvas equals matrix.size × cellPx, silhouette fills the whole
+// output. Phone scanners may struggle with halftone QRs that lack a quiet zone;
+// use the printed copy on a real phone to confirm scanability before shipping.
+const CANVAS_MARGIN_PX = 0;
 
 async function loadImageData(src: string): Promise<ImageData> {
   const img = new Image();
@@ -87,7 +91,7 @@ export default function App() {
         const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
 
         const qr = renderHalftone(matrix, imageData, {
-          marginPx: state.marginPx,
+          marginPx: CANVAS_MARGIN_PX,
           background: state.background,
         });
 
@@ -164,7 +168,6 @@ export default function App() {
           customSourceLabel={state.customSource?.filename}
           caption={state.caption}
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
-          marginPx={state.marginPx}
           multiSize={state.multiSize}
           background={state.background}
           onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}

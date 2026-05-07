@@ -37,12 +37,6 @@ export const TEMPLATES: TemplatePreset[] = [
     sourcePath: '/templates/ntu-astro-mark.svg',
     palette: { accent: '#211922', fallbackDark: '#211922' },
   },
-  {
-    id: 'ntu-astro-scene',
-    displayName: 'NTU Astro (scene)',
-    sourcePath: '/templates/ntu-astro-scene.png',
-    palette: { accent: '#6f8fc7', fallbackDark: '#211922' },
-  },
 ];
 
 export const DEFAULT_TEMPLATE_ID = 'ntu-astro-mark';

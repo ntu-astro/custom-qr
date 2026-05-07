@@ -13,12 +13,10 @@ export interface ControlsProps {
   caption: string;
   onCaptionChange: (v: string) => void;
 
-  marginPx: number;
   multiSize: boolean;
   background: string;
   onAdvancedChange: (
     patch: Partial<{
-      marginPx: number;
       multiSize: boolean;
       background: string;
     }>,
@@ -85,7 +83,6 @@ export function Controls(props: ControlsProps) {
         </summary>
         <div className="mt-4">
           <AdvancedOptions
-            marginPx={props.marginPx}
             multiSize={props.multiSize}
             background={props.background}
             onChange={props.onAdvancedChange}

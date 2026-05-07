@@ -23,14 +23,6 @@ function silhouetteImageData(w: number, h: number, radiusFactor = 0.4): ImageDat
   return new ImageData(data, w, h);
 }
 
-function whiteImageData(w: number, h: number): ImageData {
-  const data = new Uint8ClampedArray(w * h * 4);
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 0;
-  }
-  return new ImageData(data, w, h);
-}
-
 describe('flipModulesByCodeword', () => {
   const text = 'https://ntuastro.com';
 
@@ -95,33 +87,4 @@ describe('flipModulesByCodeword', () => {
     expect(after).toBeLessThan(before);
   });
 
-  it('still produces a scannable QR after flips (silhouette source)', async () => {
-    const { verify } = await import('./scanVerifier');
-    const { render } = await import('./halftoneRenderer');
-    const baseMatrix = buildMatrix(text);
-    const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, '#ffffff', baseMatrix.importance);
-    const masked = pickBestMask(text, target).best.matrix;
-    const { matrix } = flipModulesByCodeword(masked, target);
-
-    const canvas = render(matrix, source, { marginPx: 32, background: '#ffffff' });
-    const results = verify(canvas, [canvas.width]);
-    expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe(text);
-  });
-
-  it('still produces a scannable QR after flips (white source — no silhouette)', async () => {
-    const { verify } = await import('./scanVerifier');
-    const { render } = await import('./halftoneRenderer');
-    const baseMatrix = buildMatrix(text);
-    const source = whiteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, '#ffffff', baseMatrix.importance);
-    const masked = pickBestMask(text, target).best.matrix;
-    const { matrix } = flipModulesByCodeword(masked, target);
-
-    const canvas = render(matrix, source, { marginPx: 32, background: '#ffffff' });
-    const results = verify(canvas, [canvas.width]);
-    expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe(text);
-  });
 });

@@ -40,13 +40,19 @@ Or connect this repo to a Cloudflare Pages project with build command `npm run b
 
 ## Architecture
 
-- `src/lib/qrMatrix.ts` — QR module matrix + reserved mask
-- `src/lib/halftoneRenderer.ts` — 4 halftone styles, pure function
-- `src/lib/composer.ts` — poster layout
-- `src/lib/scanVerifier.ts` — `jsqr` at multiple sizes
-- `src/templates/presets.ts` — 7-template registry
+Canonical Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia) pipeline:
+
+- `src/lib/qrMatrix.ts` — QR module matrix + reserved-cell importance map
+- `src/lib/halftoneTarget.ts` — dither the source illustration to per-module targets
+- `src/lib/maskOptimizer.ts` — Stage 2: pick the QR mask whose post-mask bits best match the silhouette
+- `src/lib/moduleFlipper.ts` — Stage 3a: per-RS-block greedy module flips paid for by ECC slack (paper budget 0.49 × ecCount)
+- `src/lib/halftoneRenderer.ts` — sub-pixel halftone (3×3 grid per module, centre 1/9 stamp), pure black-on-white, no quiet zone
+- `src/lib/composer.ts` — poster layout (separate from the QR rendering itself)
+- `src/templates/presets.ts` — template registry
 - `src/components/*` — React UI
 - `src/App.tsx` + `src/appReducer.ts` — state + pipeline orchestration
+
+QRs are tested with a real smartphone camera — there is no in-browser scan verifier (canonical halftone QRs intentionally have no quiet zone, which trips strict pure-JS decoders even though phone cameras decode them fine).
 
 ## License
 

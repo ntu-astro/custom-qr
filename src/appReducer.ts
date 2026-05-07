@@ -13,7 +13,6 @@ export interface AppState {
   customSource: CustomSource | null;
   caption: string;
   posterSize: PosterSize;
-  marginPx: number;
   multiSize: boolean;
   background: string;
 }
@@ -28,7 +27,6 @@ export type AppAction =
   | {
       type: 'PATCH_ADVANCED';
       patch: Partial<{
-        marginPx: number;
         multiSize: boolean;
         background: string;
       }>;
@@ -40,7 +38,6 @@ export const initialState: AppState = {
   customSource: null,
   caption: '',
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
-  marginPx: 32,
   multiSize: false,
   background: 'transparent',
 };
