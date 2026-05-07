@@ -32,7 +32,7 @@ const NON_SILHOUETTE_FLOOR = 0.1;
 export function computeHalftoneTarget(
   source: ImageData,
   size: number,
-  baseImportance: number[][],
+  reserved: Uint8Array,
   silhouetteScale: number = 1,
 ): HalftoneTarget {
   // The dither pass is the canonical signal of "where the source wants ink".
@@ -40,7 +40,8 @@ export function computeHalftoneTarget(
   // against white internally), then derive both the per-module target AND its
   // importance weight from the dithered bitmap: dark modules of the target
   // carry full weight (1.0) because that's the silhouette; light modules drop
-  // to the floor.
+  // to the floor. Reserved modules are excluded (importance 0) so the
+  // optimiser never tries to flip them.
   const rasterised = rasterizeSource(source, size, silhouetteScale);
   const binary = ditherFloydSteinberg(rasterised);
 
@@ -53,8 +54,8 @@ export function computeHalftoneTarget(
       const idx = y * size + x;
       const isDark = binary[idx] === 0;
       tRow.push(isDark);
-      const base = baseImportance[y][x];
-      iRow.push(base === 0 ? 0 : (isDark ? 1.0 : NON_SILHOUETTE_FLOOR));
+      const isReserved = reserved[idx] === 1;
+      iRow.push(isReserved ? 0 : (isDark ? 1.0 : NON_SILHOUETTE_FLOOR));
     }
     target.push(tRow);
     importance.push(iRow);

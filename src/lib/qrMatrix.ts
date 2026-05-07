@@ -18,9 +18,9 @@ export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRM
   const size: number = qr.modules.size;
   // qrcode's BitMatrix tracks `reservedBit[y*size + x] === 1` for every
   // structurally-required module (finder, separator, timing, alignment,
-  // format-info, version-info) as it builds the symbol. We use that as our
-  // importance-map "0 = excluded" signal — canonical, no risk of geometric
-  // mismatches with qrcode's own data placement.
+  // format-info, version-info) as it builds the symbol. We carry that mask
+  // forward verbatim — canonical, no risk of geometric mismatches with
+  // qrcode's own data placement.
   const bitMatrix = qr.modules as unknown as {
     size: number;
     get?: (x: number, y: number) => number;
@@ -38,18 +38,14 @@ export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRM
     : (x: number, y: number) => Boolean(bitMatrix.data[y * size + x]);
 
   const modules: boolean[][] = [];
-  const importance: number[][] = [];
   for (let y = 0; y < size; y++) {
     const moduleRow: boolean[] = [];
-    const importanceRow: number[] = [];
     for (let x = 0; x < size; x++) {
       moduleRow.push(get(x, y));
-      // qrcode uses (row, col) ordering for its reservedBit; row=y, col=x.
-      importanceRow.push(bitMatrix.reservedBit[y * size + x] ? 0 : 1);
     }
     modules.push(moduleRow);
-    importance.push(importanceRow);
   }
+  const reserved = new Uint8Array(bitMatrix.reservedBit);
 
-  return { size, modules, importance };
+  return { size, modules, reserved };
 }

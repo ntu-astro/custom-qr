@@ -149,7 +149,7 @@ export interface ModuleStreamPos {
  *
  *  Walks the canonical 2-column zigzag from (size-1, size-1) upward, skipping
  *  the column-6 timing pattern. Identical to qrcode's setupData() iteration.
- *  Reserved-ness is read from `matrix.importance` (== 0).
+ *  Reserved-ness is read from `matrix.reserved` (== 1).
  *
  *  Per ISO/IEC 18004 §8.7.2, some QR versions have a tail of "remainder bits"
  *  past `totalCodewords × 8` (e.g. version 3 has 7). qrcode sets those to 0
@@ -170,7 +170,7 @@ export function buildModuleStreamMap(matrix: QRMatrix): (ModuleStreamPos | null)
     while (true) {
       for (let c = 0; c < 2; c++) {
         const cc = col - c;
-        if (matrix.importance[row][cc] !== 0) {
+        if (matrix.reserved[row * size + cc] === 0) {
           if (byteIndex < layout.totalCodewords) {
             out[row][cc] = { streamIdx: byteIndex, bitInCodeword: bitIndex };
           }

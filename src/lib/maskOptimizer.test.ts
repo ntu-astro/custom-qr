@@ -35,7 +35,7 @@ describe('pickBestMask', () => {
 
   it('returns 8 scored masks, sorted ascending by score', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
+    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
     const { best, scores } = pickBestMask(text, target);
 
     expect(scores).toHaveLength(8);
@@ -48,8 +48,8 @@ describe('pickBestMask', () => {
 
   it('chooses different masks for different targets', () => {
     const base = buildMatrix(text);
-    const blackTarget = computeHalftoneTarget(blackImageData(256, 256), base.size, base.importance);
-    const silTarget = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
+    const blackTarget = computeHalftoneTarget(blackImageData(256, 256), base.size, base.reserved);
+    const silTarget = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
 
     const blackBest = pickBestMask(text, blackTarget).best.maskPattern;
     const silBest = pickBestMask(text, silTarget).best.maskPattern;
@@ -65,37 +65,27 @@ describe('pickBestMask', () => {
     void blackBest; void silBest;
   });
 
-  it('attaches the image-weighted importance to the returned matrix', () => {
+  it('preserves the reserved mask on the returned matrix', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
+    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
     const { best } = pickBestMask(text, target);
-    // Reserved cells stay at 0.
-    expect(best.matrix.importance[0][0]).toBe(0);
-    // The silhouette doesn't cover the entire QR — at least one data module
-    // outside the centred circle should land at the non-silhouette floor (i.e.
-    // importance < 1.0) rather than the uniform default 1.0.
-    let foundLowWeight = false;
-    for (let y = 0; y < best.matrix.size; y++) {
-      for (let x = 0; x < best.matrix.size; x++) {
-        const w = best.matrix.importance[y][x];
-        if (w > 0 && w < 0.95) { foundLowWeight = true; break; }
-      }
-      if (foundLowWeight) break;
-    }
-    expect(foundLowWeight).toBe(true);
+    // Reserved mask must round-trip — the renderer and Stage 3 read it from
+    // matrix.reserved to identify finder/timing/alignment cells.
+    expect(best.matrix.reserved).toEqual(base.reserved);
   });
-
 });
 
 describe('scoreMask', () => {
   it('returns 0 when matrix and target perfectly agree (synthetic)', () => {
-    const text = 'a';
-    const matrix = buildMatrix(text);
-    // Build a target that exactly mirrors the matrix; importance from baseline.
+    const matrix = buildMatrix('a');
+    // Build a target that exactly mirrors the matrix's modules. Importance is
+    // uniform 1.0 — the agreement check is what matters here.
     const target = {
       size: matrix.size,
       target: matrix.modules.map((row) => [...row]),
-      importance: matrix.importance.map((row) => [...row]),
+      importance: Array.from({ length: matrix.size }, () =>
+        Array<number>(matrix.size).fill(1.0),
+      ),
     };
     expect(scoreMask(matrix, target)).toBe(0);
   });

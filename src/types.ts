@@ -21,13 +21,11 @@ export interface QRMatrix {
   size: number;
   /** QR module values, true = dark. Mutated by mask optimisation + module flipping. */
   modules: boolean[][];
-  /** Per-module importance weight (Chu et al. 2013):
-   *   - 0 = structurally reserved (finder/timing/alignment/format/version);
-   *         excluded from optimisation, full-cell stamp in the renderer.
-   *   - 0..1 = data module — higher means "preserve this position's
-   *         agreement with the source image". Used by mask scoring and the
-   *         per-block flip selector. Default 1.0 before image-weighting. */
-  importance: number[][];
+  /** Flat (size × size) mask: 1 = structurally reserved
+   *  (finder/timing/alignment/format/version), 0 = data module. Indexed as
+   *  `reserved[y * size + x]`. The fractional fidelity weights used by Stage 2
+   *  / Stage 3 live on `HalftoneTarget.importance`, not here. */
+  reserved: Uint8Array;
 }
 
 export interface ScanResult {

@@ -50,9 +50,6 @@ export function pickBestMask(text: string, target: HalftoneTarget): PickBestMask
   const scores: MaskScore[] = [];
   for (const maskPattern of ALL_MASKS) {
     const matrix = buildMatrix(text, { maskPattern });
-    // Carry the image-weighted importance into the returned matrix so downstream
-    // consumers (renderer, Stage 3) read the same weights the optimiser used.
-    matrix.importance = target.importance;
     scores.push({ maskPattern, score: scoreMask(matrix, target), matrix });
   }
   scores.sort((a, b) => a.score - b.score);

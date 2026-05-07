@@ -19,7 +19,7 @@ A small client-only React app that turns a URL into a halftone-style QR code. Im
 1. **No quiet zone around the QR.** Canonical halftone QRs intentionally fill the whole canvas. Phone cameras decode them fine but pure-JS decoders (jsqr) are stricter — the in-browser ScanBadge is conservative.
 2. **ECC level H, hardcoded.** See `QR_ECC_LEVEL` in `src/types.ts`. The mask-optimiser and module-flipper assume H. Don't change without re-deriving the codeword/ECC tables in `src/lib/codewordLayout.ts`.
 3. **Per-RS-block flip budget = 0.15 × ecCount** (`DEFAULT_ECC_BUDGET_RATIO` in `moduleFlipper.ts`). The paper uses 0.49; we're conservative because jsqr is strict. Empirically tuned — bump only if you've tested on a phone.
-4. **Effect A / `useMemo` split in App.tsx is load-bearing.** Effect A rebuilds the QR (expensive: builds 8 mask candidates, scores, flips). The poster is a `useMemo` that depends on the QR canvas + caption + posterSize + palette. Don't recouple — typing in the caption shouldn't re-run mask optimisation.
+4. **`useQrPipeline` hook / poster `useMemo` split is load-bearing.** The hook (`src/hooks/useQrPipeline.ts`) rebuilds the QR (expensive: builds 8 mask candidates, scores, flips) and re-runs only on `[url, templateId, customSource, silhouetteScale, multiSize]`. The poster is a `useMemo` in `App.tsx` that depends on `[qrCanvas, caption, posterSize, palette]`. Don't recouple — typing in the caption shouldn't re-run mask optimisation.
 5. **Composer halo uses a seeded PRNG.** `composer.ts` uses `mulberry32` seeded from `caption.length + size.width + size.height` so the same inputs produce the same poster. Don't reintroduce `Math.random`.
 
 ## Locked decisions (verified, don't redo)
@@ -77,15 +77,15 @@ buildMatrix (qrMatrix.ts)
   → render (halftoneRenderer.ts)
 ```
 
-Stage 2 (mask) and Stage 3a (flip) both depend on the importance map produced by Stage 1. Stage 3a additionally depends on `codewordLayout.ts` for the module ↔ codeword inverse map. Tests in `src/lib/*.test.ts` exercise each stage individually.
+Stage 1 produces a flat `Uint8Array` `reserved` mask (`QRMatrix.reserved`, 1 = reserved/0 = data, indexed `[y * size + x]`). Stage 2 takes that mask and the source ImageData and produces a `HalftoneTarget` whose `importance: number[][]` carries the fractional fidelity weights (0 / 0.1 / 1.0). Stage 3a (flip) reads `target.importance` and `codewordLayout.ts` for the module ↔ codeword inverse map. Don't conflate the two — the matrix's `reserved` mask is binary, the target's `importance` is weighted. Tests in `src/lib/*.test.ts` exercise each stage individually.
 
 ### Verifying changes
 Always run **all of**: `npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`. CI enforces all five.
 
 ## Gotchas
 
-- **Effect-A deps are exhaustive on purpose.** The eslint `react-hooks/exhaustive-deps` rule is enforced. The state slice is destructured at the top of `App.tsx` so the deps array can list specific fields. Don't pass `state` or `state.url` as a dep when `url` is already destructured — eslint will flag it.
-- **`set-state-in-effect`** is also enforced. Don't put synchronous `setState` calls in the effect body — defer to an async function or a microtask. The current Effect A demonstrates the pattern.
+- **`useQrPipeline` deps are exhaustive on purpose.** The eslint `react-hooks/exhaustive-deps` rule is enforced. The hook input is destructured at the top so the deps array lists specific fields. Don't pass an `input` object as a dep — eslint will flag it, and a fresh object each render would re-run the pipeline every render.
+- **`set-state-in-effect`** is also enforced. Don't put synchronous `setState` calls in an effect body — defer to an async function or a microtask. The hook's `buildQr` async fn demonstrates the pattern.
 - **`react-refresh/only-export-components`** triggers when a component file exports non-component values. Move shared constants/types to `src/types.ts` or a non-component file.
 - **The `canvas` jsdom polyfill needs care in tests.** If you write a new test that constructs `ImageData` or calls `getContext('2d')`, the existing setup (`vitest.setup.ts`) covers it. If you need to mock `URL.createObjectURL` or `Image`, see `src/lib/decodeQrImage.test.ts` for the established pattern.
 - **CSS theme tokens are scanned from class usage.** Tailwind v4 won't generate `bg-newcolor` unless `--color-newcolor` is in `@theme` AND a class uses it. After adding a token, check the build CSS isn't missing classes.
