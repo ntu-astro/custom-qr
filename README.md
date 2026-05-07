@@ -35,15 +35,13 @@ Two NTU templates ship as best-effort placeholders. Maintainers can regenerate t
 
 ## Deploy
 
-Cloudflare Pages auto-deploys from `main` via Cloudflare's GitHub integration (configured in the Cloudflare dashboard, not in this repo). For one-off manual deploys:
+Deployed as a Cloudflare Worker with [static assets](https://developers.cloudflare.com/workers/static-assets/) (`[assets]` directory in [`wrangler.toml`](wrangler.toml), SPA fallback). Cloudflare Workers Builds auto-deploys from `main` via the GitHub integration (configured in the dashboard, not in this repo). For one-off manual deploys:
 
 ```bash
 npx wrangler login        # one-time
 npm run build
-npm run deploy
+npm run deploy            # wrangler deploy
 ```
-
-Or connect this repo to a Cloudflare Pages project with build command `npm run build` and output directory `dist`.
 
 ## Project layout
 

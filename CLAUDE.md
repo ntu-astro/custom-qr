@@ -4,7 +4,7 @@ This file gives an agent enough context to make non-obvious decisions in this re
 
 ## What this is
 
-A small client-only React app that turns a URL into a halftone-style QR code. Implementation follows Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia). Deployed to Cloudflare Pages. No backend, no tracking, no auth — pure browser code.
+A small client-only React app that turns a URL into a halftone-style QR code. Implementation follows Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia). Deployed as a Cloudflare Worker with static assets (SPA mode). No backend, no tracking, no auth — pure browser code.
 
 ## Technology snapshot
 
@@ -49,7 +49,7 @@ npm test              # vitest run (38 tests across 8 files)
 npm run test:e2e      # Playwright chromium (builds first, runs against vite preview :4173)
 npm run test:e2e:ui   # Playwright UI mode
 npm run build         # → dist/
-npm run deploy        # wrangler pages deploy dist
+npm run deploy        # wrangler deploy (Cloudflare Worker w/ static assets)
 ```
 
 ## Common tasks
