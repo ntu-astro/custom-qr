@@ -1,5 +1,10 @@
 # Design System Inspired by Pinterest
 
+> **Note — this is a reference doc, not the implementation spec.**
+> It captures the Pinterest-derived design language that *informs* the Astro QR app's look. The actual implementation tokens (colors, radii, font stack, tracking) live in [`src/index.css`](src/index.css) inside the Tailwind v4 `@theme` block. If you want to change a token in the running app, edit `src/index.css` — this doc is here so you understand *why* a given token exists.
+
+
+
 ## 1. Visual Theme & Atmosphere
 
 Pinterest's website is a warm, inspiration-driven canvas that treats visual discovery like a lifestyle magazine. The design operates on a soft, slightly warm white background with Pinterest Red (`#e60023`) as the singular, bold brand accent. Unlike the cool blues of most tech platforms, Pinterest's neutral scale has a distinctly warm undertone — grays lean toward olive/sand (`#91918c`, `#62625b`, `#e5e5e0`) rather than cool steel, creating a cozy, craft-like atmosphere that invites browsing.

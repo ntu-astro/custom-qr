@@ -17,16 +17,17 @@ A small, polished web app that turns any URL into a halftone-style QR code with 
 
 ```bash
 npm install
-npm run dev         # vite dev server on :5173
-npm test            # vitest run, 36 unit tests
-npm run test:e2e    # playwright chromium smoke (6 tests, builds first)
-npm run lint        # tsc --noEmit
-npm run build       # → dist/
+npm run dev          # vite dev server on :5173
+npm test             # vitest run, 36 unit + 2 decode tests
+npm run test:e2e     # playwright chromium smoke (6 tests, builds first)
+npm run typecheck    # tsc -b --noEmit
+npm run lint         # eslint . --max-warnings=0
+npm run build        # → dist/
 ```
 
-## CI / E2E
+## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs lint, unit tests, build, and the Playwright smoke suite on every push and pull request, so a green main reflects all four gates.
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, build, and the Playwright smoke suite on every push and pull request — a green `main` reflects all five gates.
 
 ## Asset prep
 
@@ -43,6 +44,25 @@ npm run deploy
 ```
 
 Or connect this repo to a Cloudflare Pages project with build command `npm run build` and output directory `dist`.
+
+## Project layout
+
+```
+src/
+  App.tsx                  # state + pipeline orchestration
+  appReducer.ts            # state machine (URL, template, advanced settings)
+  index.css                # Tailwind v4 entrypoint + @theme tokens
+  main.tsx                 # React root + ErrorBoundary
+  types.ts                 # shared types and constants
+  components/              # React UI (Controls, QrPreview, etc.)
+  lib/                     # pure halftone-pipeline modules
+  templates/presets.ts     # template registry (id → asset + palette)
+public/templates/          # built-in silhouette source assets (svg/png)
+e2e/                       # Playwright smoke tests
+.github/workflows/ci.yml   # CI pipeline
+```
+
+See [`CLAUDE.md`](CLAUDE.md) for orientation if you're a Claude Code agent landing in this repo, and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the human contributor flow.
 
 ## Architecture
 
