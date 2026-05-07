@@ -17,20 +17,47 @@ Each file here is a halftone *source* for the QR generator. They are sampled per
 | `scorpius.svg` | J2000 positions, sky-correct, Stellarium "western" lines | 13 stars; single fishhook spine through zeta1 Sco; head as a 3-prong fork from Antares; **no Lesath / Alniyat** (per Stellarium) |
 | `crux.svg` | hand-authored | constellation, 5-star Southern Cross |
 | `sagittarius-teapot.svg` | J2000 positions, sky-correct, Stellarium "western" lines (teapot subset) | 8 stars: lid (lambda-delta-phi), body, gamma spout (west), Nunki/Tau/Ascella handle (east) |
-| `ntu-astro-mark.svg` | hand-traced from `logo-1.jpeg` | club monogram, halftones cleanly |
+| `ntuas.svg` | text-only, Archivo Black (Google Fonts, OFL), glyphs converted to paths | wordmark "NTUAS" centered in a 512×512 viewBox; halftones to a horizontal silhouette band |
 
 ## Re-generating club assets
 
-### `ntu-astro-mark.svg` (vectorize from `logo-1.jpeg`)
+### `ntuas.svg` (Archivo Black wordmark → SVG paths)
 
 ```bash
-# Install once
-brew install potrace imagemagick
+# Download Archivo Black (OFL)
+curl -sSL -o /tmp/ArchivoBlack.ttf \
+  "https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf"
+pip install fonttools
 
-# Convert and trace
-magick ../../logo-1.jpeg -threshold 50% -negate ntu-astro-mark.bmp
-potrace ntu-astro-mark.bmp -s -o ntu-astro-mark.svg
-rm ntu-astro-mark.bmp
+# Convert glyphs to centered SVG paths (Python)
+python3 - <<'PY'
+from fontTools.ttLib import TTFont
+from fontTools.pens.svgPathPen import SVGPathPen
+font = TTFont("/tmp/ArchivoBlack.ttf")
+cmap, glyphs, hmtx = font.getBestCmap(), font.getGlyphSet(), font['hmtx']
+TEXT, VB, PAD = "NTUAS", 512, 0.06
+items, total_adv = [], 0
+for ch in TEXT:
+    g = glyphs[cmap[ord(ch)]]; pen = SVGPathPen(glyphs); g.draw(pen)
+    adv = hmtx[cmap[ord(ch)]][0]
+    items.append((pen.getCommands(), adv, cmap[ord(ch)])); total_adv += adv
+glyf = font['glyf']
+y_min = min(glyf[n].yMin for _,_,n in items if glyf[n].numberOfContours)
+y_max = max(glyf[n].yMax for _,_,n in items if glyf[n].numberOfContours)
+avail = VB * (1 - 2*PAD)
+scale = min(avail/total_adv, avail/(y_max-y_min))
+bw, bh = total_adv*scale, (y_max-y_min)*scale
+tx, ty = (VB-bw)/2, (VB-bh)/2 + scale*y_max
+parts, cum = [], 0
+for d, adv, _ in items:
+    parts.append(f'    <path transform="translate({tx+cum*scale:.4f} {ty:.4f}) '
+                 f'scale({scale:.6f} -{scale:.6f})" d="{d}"/>')
+    cum += adv
+open('ntuas.svg','w').write(
+  f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VB} {VB}" '
+  f'width="{VB}" height="{VB}">\n  <g fill="#211922">\n' +
+  '\n'.join(parts) + '\n  </g>\n</svg>\n')
+PY
 ```
 
 ## Adding new templates

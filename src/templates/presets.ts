@@ -32,14 +32,14 @@ export const TEMPLATES: TemplatePreset[] = [
     palette: { accent: '#c89055', fallbackDark: '#211922' },
   },
   {
-    id: 'ntu-astro-mark',
-    displayName: 'NTU Astro (mark)',
-    sourcePath: '/templates/ntu-astro-mark.svg',
+    id: 'ntuas',
+    displayName: 'NTUAS',
+    sourcePath: '/templates/ntuas.svg',
     palette: { accent: '#211922', fallbackDark: '#211922' },
   },
 ];
 
-export const DEFAULT_TEMPLATE_ID = 'ntu-astro-mark';
+export const DEFAULT_TEMPLATE_ID = 'ntuas';
 
 export function findTemplate(id: string): TemplatePreset {
   const t = TEMPLATES.find((x) => x.id === id);
