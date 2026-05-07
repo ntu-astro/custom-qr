@@ -24,7 +24,7 @@ function silhouetteImageData(w: number, h: number, radiusFactor = 0.4): ImageDat
 }
 
 describe('flipModulesByCodeword', () => {
-  const text = 'https://ntuastro.com';
+  const text = 'https://www.instagram.com/ntu_astro/';
 
   it('does nothing when target perfectly matches the QR (score 0 everywhere)', () => {
     const matrix = buildMatrix(text);

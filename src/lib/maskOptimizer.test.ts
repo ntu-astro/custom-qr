@@ -31,7 +31,7 @@ function silhouetteImageData(w: number, h: number): ImageData {
 }
 
 describe('pickBestMask', () => {
-  const text = 'https://ntuastro.com';
+  const text = 'https://www.instagram.com/ntu_astro/';
 
   it('returns 8 scored masks, sorted ascending by score', () => {
     const base = buildMatrix(text);

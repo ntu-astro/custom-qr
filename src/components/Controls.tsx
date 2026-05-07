@@ -44,7 +44,7 @@ export function Controls(props: ControlsProps) {
           type="text"
           value={props.url}
           onChange={(e) => props.onUrlChange(e.target.value)}
-          placeholder="https://ntuastro.com"
+          placeholder="https://www.instagram.com/ntu_astro/"
           className="input-base w-full font-mono"
           spellCheck={false}
         />

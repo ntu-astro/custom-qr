@@ -1,6 +1,6 @@
 # Astro QR — Halftone QR Generator
 
-A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://ntuastro.com).
+A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://www.instagram.com/ntu_astro/).
 
 ## Features
 - 7 built-in templates (Saturn, Telescope, Galaxy Spiral, Comet, Observatory Dome, NTU Astro mark, NTU Astro scene)

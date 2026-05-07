@@ -224,7 +224,7 @@ Follows the Pinterest-inspired design system in [DESIGN.md](../../../DESIGN.md).
 
 ## UX flow & copy
 
-- **Empty state:** preview shows the logo template rendered for a placeholder URL (default `https://ntuastro.com`, defined as `DEFAULT_PLACEHOLDER_URL` in `templates/presets.ts` so maintainers can swap in the club's actual primary URL with a one-line edit) so the page is never blank
+- **Empty state:** preview shows the logo template rendered for a placeholder URL (default `https://www.instagram.com/ntu_astro/`, defined as `DEFAULT_PLACEHOLDER_URL` in `templates/presets.ts` so maintainers can swap in the club's actual primary URL with a one-line edit) so the page is never blank
 - **Loading state:** halftone render takes ~100–300ms on input change — show a subtle shimmer on the preview canvas during regen
 - **Scan badge copy:**
   - `✓ Scannable`

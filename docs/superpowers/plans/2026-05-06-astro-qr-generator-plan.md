@@ -507,7 +507,7 @@ export interface RenderOptions {
   background: string;
 }
 
-export const DEFAULT_PLACEHOLDER_URL = 'https://ntuastro.com';
+export const DEFAULT_PLACEHOLDER_URL = 'https://www.instagram.com/ntu_astro/';
 export const QR_ECC_LEVEL = 'H' as const;
 ```
 
@@ -809,7 +809,7 @@ import { buildMatrix } from './qrMatrix';
 
 describe('buildMatrix', () => {
   it('returns square modules and reservedMask', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     expect(m.size).toBeGreaterThan(20);
     expect(m.modules.length).toBe(m.size);
     expect(m.modules[0].length).toBe(m.size);
@@ -818,7 +818,7 @@ describe('buildMatrix', () => {
   });
 
   it('marks the three finder-pattern regions as reserved', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     const corners = [
       [0, 0],                       // top-left finder
       [m.size - 1, 0],              // top-right finder
@@ -830,7 +830,7 @@ describe('buildMatrix', () => {
   });
 
   it('marks timing-pattern row 6 and column 6 as reserved', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     for (let i = 8; i < m.size - 8; i++) {
       expect(m.reservedMask[6][i]).toBe(true);
       expect(m.reservedMask[i][6]).toBe(true);
@@ -1021,18 +1021,18 @@ async function renderKnownQr(text: string, modulePx = 8): Promise<HTMLCanvasElem
 
 describe('verify', () => {
   it('decodes a clean QR at full size', async () => {
-    const canvas = await renderKnownQr('https://ntuastro.com', 8);
+    const canvas = await renderKnownQr('https://www.instagram.com/ntu_astro/', 8);
     const results = verify(canvas, [canvas.width]);
     expect(results).toHaveLength(1);
     expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe('https://ntuastro.com');
+    expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
   });
 
   it('decodes when downscaled to 200px', async () => {
-    const canvas = await renderKnownQr('https://ntuastro.com', 12);
+    const canvas = await renderKnownQr('https://www.instagram.com/ntu_astro/', 12);
     const results = verify(canvas, [200]);
     expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe('https://ntuastro.com');
+    expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
   });
 
   it('returns ok:false for a noise canvas', () => {
@@ -1142,7 +1142,7 @@ function whiteImageData(w: number, h: number): ImageData {
 }
 
 describe('render — hybrid', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('produces a square canvas sized for the matrix plus margin', () => {
     const canvas = render(matrix, blackImageData(512, 512), {
@@ -1355,7 +1355,7 @@ Append to `src/lib/halftoneRenderer.test.ts`:
 import { render as render2 } from './halftoneRenderer';
 
 describe('render — variable', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('keeps dark data modules visibly filled even when source is bright', () => {
     const canvas = render2(matrix, whiteImageData(256, 256), {
@@ -1478,7 +1478,7 @@ Stippling places uniform-size dots; density (count per cell) varies with darknes
 Append to `src/lib/halftoneRenderer.test.ts`:
 ```ts
 describe('render — stippling', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('produces uniform-size stipples in dark source areas', () => {
     const canvas = render2(matrix, blackImageData(256, 256), {
@@ -1606,7 +1606,7 @@ In QR-grid mode every cell is filled or empty as one unit. Source brightness alo
 Append to `src/lib/halftoneRenderer.test.ts`:
 ```ts
 describe('render — qrgrid', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('renders cells as solid blocks (no sub-cell halftone)', () => {
     const canvas = render2(matrix, blackImageData(256, 256), {
@@ -2199,7 +2199,7 @@ export function Controls(props: ControlsProps) {
           type="text"
           value={props.url}
           onChange={(e) => props.onUrlChange(e.target.value)}
-          placeholder="https://ntuastro.com"
+          placeholder="https://www.instagram.com/ntu_astro/"
           className="input-base w-full font-mono"
           spellCheck={false}
         />
@@ -2680,7 +2680,7 @@ export default function App() {
       <button
         type="button"
         className="btn-primary mt-4"
-        onClick={() => dispatch({ type: 'SET_URL', value: 'https://ntuastro.com/events' })}
+        onClick={() => dispatch({ type: 'SET_URL', value: 'https://www.instagram.com/ntu_astro//events' })}
       >
         Test reducer
       </button>
@@ -3006,7 +3006,7 @@ Then open `http://localhost:5173` in the browser. Manually verify:
 - Density slider visibly changes dot density
 - Multi-size toggle adds the print-size badge
 - Three download buttons produce valid files (PNG, SVG, poster PNG)
-- Scan one of the downloaded PNGs with a phone camera — it should resolve to `https://ntuastro.com`
+- Scan one of the downloaded PNGs with a phone camera — it should resolve to `https://www.instagram.com/ntu_astro/`
 
 - [ ] **Step 5: Commit**
 
@@ -3127,7 +3127,7 @@ git commit -m "chore: cloudflare pages deploy config"
 ```markdown
 # Astro QR — Halftone QR Generator
 
-A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://ntuastro.com).
+A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://www.instagram.com/ntu_astro/).
 
 ## Features
 - 7 built-in templates (Saturn, Telescope, Galaxy Spiral, Comet, Observatory Dome, NTU Astro mark, NTU Astro scene)

@@ -19,7 +19,7 @@ function whiteImageData(w: number, h: number): ImageData {
 }
 
 describe('render', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('produces a square canvas sized for the matrix plus margin', () => {
     const canvas = render(matrix, blackImageData(512, 512), {
@@ -58,7 +58,7 @@ describe('render', () => {
 });
 
 describe('render — reserved-cell suppression', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   // Module (1, 3) sits inside the top-left finder's white ring — both reserved AND
   // a light cell. Without suppression a fully-black source at high density would
@@ -83,7 +83,7 @@ describe('render — reserved-cell suppression', () => {
 });
 
 describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   function findNonReservedLightModule(): [number, number] {
     for (let my = 9; my < matrix.size - 9; my++) {
@@ -147,7 +147,7 @@ describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
 });
 
 describe('render — scan survival', () => {
-  const matrix = buildMatrix('https://ntuastro.com');
+  const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('decodes via jsqr (light source)', async () => {
     const { verify } = await import('./scanVerifier');
@@ -157,7 +157,7 @@ describe('render — scan survival', () => {
     });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe('https://ntuastro.com');
+    expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
   });
 
   it('decodes via jsqr (dark source — silhouette stress)', async () => {
@@ -168,6 +168,6 @@ describe('render — scan survival', () => {
     });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
-    expect(results[0].decoded).toBe('https://ntuastro.com');
+    expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
   });
 });

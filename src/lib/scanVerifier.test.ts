@@ -13,7 +13,7 @@ function whiteImageData(w: number, h: number): ImageData {
 
 describe('verify', () => {
   it('decodes a rendered halftone QR back to the original text', () => {
-    const text = 'https://ntuastro.com';
+    const text = 'https://www.instagram.com/ntu_astro/';
     const matrix = buildMatrix(text);
     const canvas = render(matrix, whiteImageData(256, 256), {
       marginPx: 32,

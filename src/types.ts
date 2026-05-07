@@ -49,5 +49,5 @@ export interface RenderOptions {
   silhouetteScale?: number;
 }
 
-export const DEFAULT_PLACEHOLDER_URL = 'https://ntuastro.com';
+export const DEFAULT_PLACEHOLDER_URL = 'https://www.instagram.com/ntu_astro/';
 export const QR_ECC_LEVEL = 'H' as const;

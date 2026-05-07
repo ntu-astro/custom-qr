@@ -3,7 +3,7 @@ import { buildMatrix } from './qrMatrix';
 
 describe('buildMatrix', () => {
   it('returns square modules and a same-sized importance map', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     expect(m.size).toBeGreaterThan(20);
     expect(m.modules.length).toBe(m.size);
     expect(m.modules[0].length).toBe(m.size);
@@ -12,7 +12,7 @@ describe('buildMatrix', () => {
   });
 
   it('marks the three finder-pattern regions with importance 0', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     const corners = [
       [0, 0],
       [m.size - 1, 0],
@@ -24,7 +24,7 @@ describe('buildMatrix', () => {
   });
 
   it('marks timing-pattern row 6 and column 6 with importance 0', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     for (let i = 8; i < m.size - 8; i++) {
       expect(m.importance[6][i]).toBe(0);
       expect(m.importance[i][6]).toBe(0);
@@ -32,7 +32,7 @@ describe('buildMatrix', () => {
   });
 
   it('marks data modules with positive importance (default 1.0)', () => {
-    const m = buildMatrix('https://ntuastro.com');
+    const m = buildMatrix('https://www.instagram.com/ntu_astro/');
     // The module at the very centre of the matrix is always a data module
     // for any version that doesn't have a centre alignment pattern (V1 doesn't,
     // V2+ usually does). Pick a position safely inside the data area but
