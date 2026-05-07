@@ -207,9 +207,20 @@ export function shouldAcceptFlip(
 
 ## 6. Spec — PR 2 · Subpixel canvas extraction
 
-**Goal.** Lift `rasterizeSource` + `liftMarginBrightness` + `ditherFloydSteinberg` calls out of `halftoneRenderer.ts:185–187` into a new `buildPredictedCanvas` step that runs once before the optimiser. Renderer becomes pure paint-from-canvas.
+**Goal.** Lift `rasterizeSource` + `liftMarginBrightness` + `ditherFloydSteinberg` calls out of `halftoneRenderer.ts:185–187` into a new `buildPredictedCanvas` step that runs once before the optimiser. Renderer becomes pure paint-from-canvas. As part of the same refactor, **promote four pre-render image-conditioning helpers from `halftoneRenderer.ts` private scope to shared `imageOps.ts` exports** so PR 3's composite renderer can reuse them rather than duplicate.
 
 This is a refactor — same output bytes, work just moved earlier in the pipeline.
+
+### Why the helper extraction is required (not optional)
+
+The four conditioning helpers currently inside `halftoneRenderer.ts` (or inlined inside `imageOps.ts:51–58`) are **not halftone-specific** — they are input-compatibility steps that any renderer accepting our existing input formats (PNG/SVG with transparency, JPEG, WebP, etc.) must run. The walkthrough in §7 of the implementation discussion confirmed this: every JPEG-and-SVG × mono-and-color combination in composite mode hits at least one of these helpers.
+
+Without extraction, PR 3 has only bad choices:
+- **Duplicate** the helpers in `compositeRenderer.ts` → drift risk forever (constants like `MAX_INK_LUM = 0.45`, `SILHOUETTE_ALPHA_THRESHOLD = 0.4` would diverge over time)
+- **Re-export** them from `halftoneRenderer.ts` just so composite can import → wrong dependency direction; the two renderers are peers
+- **Skip** them in composite → user-facing regression (transparent SVG regions paint as black blocks under composite mono; partial-alpha pixels paint random faded colour under composite color; finder patterns lose their margin protection)
+
+So the extraction lands in PR 2 alongside the predicted-canvas refactor. Both renderers in PR 3 onward import from `imageOps.ts`.
 
 ### Lifecycle decision (B)
 
@@ -230,24 +241,46 @@ A dev-mode assertion will verify `matrix.reserved` topology is unchanged between
 
 ### Touch list
 
-`src/lib/predictedCanvas.ts` (new):
+**Step 1 — Promote shared image-conditioning helpers (`src/lib/imageOps.ts`):**
+
+Move the following from `halftoneRenderer.ts` private scope into `imageOps.ts` as named exports. Behaviour-preserving — no semantic changes, just visibility:
+
+| Symbol | Current location | Why composite needs it |
+|---|---|---|
+| `liftMarginBrightness(rasterised, marginCells, matrixCells)` | `halftoneRenderer.ts:99` | Margin-band white-graduation; required for finder-pattern detection in either renderer |
+| `isOutsideSilhouette(data, idx4)` | `halftoneRenderer.ts:162` | Alpha/luma threshold for silhouette detection; composite-color uses it to decide between sampled colour vs. STRUCTURAL_INK fallback |
+| `clampLuminosity(r, g, b, max)` | `halftoneRenderer.ts:19` | Caps surround colours below `MAX_INK_LUM = 0.45` so dark/light contrast survives camera read |
+| `blendAgainstWhite(rgba): ImageData` | **new** — extracts the inlined `r * a + 255 * (1-a)` blend from `imageOps.ts:51–58` (`ditherFloydSteinberg`) | Without it, composite-mono would threshold transparent regions as black (luma=0), breaking SVG silhouettes |
+
+Existing constants — `MAX_INK_LUM`, `SILHOUETTE_ALPHA_THRESHOLD`, `SILHOUETTE_MAX_LUM`, `STRUCTURAL_INK`, `STRUCTURAL_INK_HEX`, `STRUCTURAL_INK_RGB`, `DARK_PIXEL_LUMA_CUTOFF` — also move with their helpers. `ditherFloydSteinberg` updated to call the new `blendAgainstWhite` helper instead of the inlined version (one-line change, no behaviour delta).
+
+**Step 2 — Refactor `ditherFloydSteinberg` to operate on pre-blended ImageData.**
+
+Currently it does the white-blend internally. After Step 1 it expects pre-blended input. Callers (currently only `halftoneRenderer`) pipeline `blendAgainstWhite` → `ditherFloydSteinberg`. PR 2's `buildPredictedCanvas` for halftone mode does the same. PR 3's composite-mono path calls `blendAgainstWhite` then thresholds.
+
+**Step 3 — `src/lib/predictedCanvas.ts` (new):**
+
 - `buildPredictedCanvas(source, matrix, marginCells, silhouetteScale, renderMode, filter)` returns `PredictedCanvas`
-- For `renderMode: 'halftone'`: rasterise at subpixel resolution → `liftMarginBrightness` → Floyd-Steinberg dither (current behaviour, lifted out of renderer)
-- For `renderMode: 'composite'`: rasterise at subpixel resolution → `liftMarginBrightness` → threshold (`filter: 'mono'`) or pass-through (`filter: 'color'`)
+- For `renderMode: 'halftone'`: rasterise at subpixel resolution → `liftMarginBrightness` → `blendAgainstWhite` → `ditherFloydSteinberg` (existing behaviour, just composed from the now-public helpers)
+- For `renderMode: 'composite'`: rasterise at subpixel resolution → `liftMarginBrightness` → `blendAgainstWhite` → threshold (`filter: 'mono'`) or pass-through (`filter: 'color'`)
 - Stores reserved-mask checksum on the returned object for the renderer's invariant check
 
-`src/lib/halftoneRenderer.ts`:
-- Remove internal rasterise/dither
+**Step 4 — `src/lib/halftoneRenderer.ts`:**
+
+- Remove internal rasterise/dither (work moved to `predictedCanvas.ts`)
+- Remove the four helpers/constants that moved to `imageOps.ts`; import them from there instead
 - Accept `predicted: PredictedCanvas` instead of `source: ImageData`
 - Paint loop unchanged otherwise; centre subpixel of every data cell is sourced from `matrix.modules[my][mx]` (already true)
 - On entry: assert `predicted.reservedChecksum === computeChecksum(matrix.reserved)` in dev builds
 
-`src/hooks/useQrPipeline.ts`:
+**Step 5 — `src/hooks/useQrPipeline.ts`:**
+
 - Insert `buildPredictedCanvas` call between `loadImageData` and `pickBestMask`
 - Pass the canvas through `flipModulesByCodeword` → `render`
 
 ### Tests
 
+- `imageOps.test.ts` — extend with unit tests for the newly-exported helpers (`liftMarginBrightness`, `isOutsideSilhouette`, `clampLuminosity`, `blendAgainstWhite`). Each helper gets a small focused test. No behaviour change but the tests pin contracts so PR 3 + PR 4 can rely on them.
 - `predictedCanvas.test.ts` — unit tests for both modes, both filters
 - Existing renderer tests must still pass byte-identically (snapshot via `canvas.toDataURL()`)
 - New test: build canvas with un-flipped matrix, flip 20 modules, paint via renderer with the flipped matrix; assert output matches a render that built canvas after flipping (proves the topology invariant)
@@ -286,9 +319,10 @@ Zero net delta. Work moved earlier; renderer faster by exactly the amount the pr
 
 `src/lib/compositeRenderer.ts` (new):
 - `render(matrix, predicted, opts): HTMLCanvasElement`
+- Imports `STRUCTURAL_INK`, `STRUCTURAL_INK_RGB`, `isOutsideSilhouette`, `clampLuminosity` from `imageOps.ts` (promoted in PR 2). No re-implementation, no halftoneRenderer dependency.
 - For each cell:
   - **Reserved cell**: full-cell paint with structural ink if `isModuleDark`, clear otherwise. (Matches `halftoneRenderer`'s reserved branch — extract a shared helper if size warrants.)
-  - **Data cell**: sample `predicted` at the cell's 9 subpixel positions. Centre subpixel painted with QR module value (structural ink or clear). Surrounding 8 painted with `predicted` values directly.
+  - **Data cell**: sample `predicted` at the cell's 9 subpixel positions. Centre subpixel painted with QR module value (structural ink or clear). Surrounding 8 painted with `predicted` values directly. In `filter: 'color'` mode, surround subpixels falling outside the silhouette (per `isOutsideSilhouette`) fall back to `STRUCTURAL_INK` instead of the sampled colour, mirroring halftoneRenderer's treatment.
 - Honours `silhouetteScale` and `filter` exactly as `halftoneRenderer` does (predictedCanvas already encodes both).
 
 `src/hooks/useQrPipeline.ts`:
