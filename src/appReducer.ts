@@ -7,15 +7,18 @@ export interface CustomSource {
   filename: string;
 }
 
-export interface AppState {
+export interface AdvancedSettings {
+  multiSize: boolean;
+  /** 0.3..1 — fraction of the QR canvas covered by the silhouette. */
+  silhouetteScale: number;
+}
+
+export interface AppState extends AdvancedSettings {
   url: string;
   templateId: string;
   customSource: CustomSource | null;
   caption: string;
   posterSize: PosterSize;
-  multiSize: boolean;
-  /** 0.3..1 — fraction of the QR canvas covered by the silhouette. */
-  silhouetteScale: number;
 }
 
 export type AppAction =
@@ -25,13 +28,7 @@ export type AppAction =
   | { type: 'CLEAR_CUSTOM_SOURCE' }
   | { type: 'SET_CAPTION'; value: string }
   | { type: 'SET_POSTER_SIZE'; size: PosterSize }
-  | {
-      type: 'PATCH_ADVANCED';
-      patch: Partial<{
-        multiSize: boolean;
-        silhouetteScale: number;
-      }>;
-    };
+  | { type: 'PATCH_ADVANCED'; patch: Partial<AdvancedSettings> };
 
 export const initialState: AppState = {
   url: '',

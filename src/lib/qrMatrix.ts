@@ -27,6 +27,12 @@ export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRM
     data: Uint8Array;
     reservedBit: Uint8Array;
   };
+  if (!(bitMatrix.reservedBit instanceof Uint8Array) || bitMatrix.reservedBit.length !== size * size) {
+    throw new Error(
+      'qrcode internal BitMatrix layout changed: reservedBit missing or wrong length. ' +
+      'Please update src/lib/qrMatrix.ts to match the new internals.'
+    );
+  }
   const get = typeof bitMatrix.get === 'function'
     ? (x: number, y: number) => Boolean(bitMatrix.get!(x, y))
     : (x: number, y: number) => Boolean(bitMatrix.data[y * size + x]);

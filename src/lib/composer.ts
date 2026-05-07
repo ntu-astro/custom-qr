@@ -21,6 +21,17 @@ function fitFontSize(
   return size;
 }
 
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function drawAccentHalo(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -28,16 +39,18 @@ function drawAccentHalo(
   innerRadius: number,
   outerRadius: number,
   accent: string,
+  seed: number,
 ) {
   const dotCount = 280;
+  const rand = mulberry32(seed);
   ctx.fillStyle = accent;
   ctx.globalAlpha = 0.15;
   for (let i = 0; i < dotCount; i++) {
-    const angle = (i / dotCount) * Math.PI * 2 + Math.random() * 0.1;
-    const r = innerRadius + Math.random() * (outerRadius - innerRadius);
+    const angle = (i / dotCount) * Math.PI * 2 + rand() * 0.1;
+    const r = innerRadius + rand() * (outerRadius - innerRadius);
     const x = cx + Math.cos(angle) * r;
     const y = cy + Math.sin(angle) * r;
-    const size = 2 + Math.random() * 6;
+    const size = 2 + rand() * 6;
     ctx.beginPath();
     ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
@@ -68,6 +81,7 @@ export function composePoster(
   const safeX = (size.width - safe) / 2;
   const safeY = (size.height - safe) / 2;
 
+  const haloSeed = (caption.length + size.width + size.height) >>> 0;
   drawAccentHalo(
     ctx,
     size.width / 2,
@@ -75,6 +89,7 @@ export function composePoster(
     safe * 0.55,
     safe * 0.85,
     palette.accent,
+    haloSeed,
   );
 
   const qrBandHeight = safe * QR_BAND_FRACTION;

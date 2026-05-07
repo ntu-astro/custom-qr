@@ -1,5 +1,5 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
-import type { ScanResult } from './types';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { Palette, ScanResult } from './types';
 import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
@@ -12,6 +12,8 @@ import { composePoster } from './lib/composer';
 import { verify } from './lib/scanVerifier';
 import { decodeQrImage } from './lib/decodeQrImage';
 import { reducer, initialState, effectiveUrl } from './appReducer';
+
+const CUSTOM_PALETTE: Palette = { accent: '#435ee5', fallbackDark: '#211922' };
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 // No quiet zone — canvas equals matrix.size × cellPx, silhouette fills the whole
@@ -63,11 +65,22 @@ export default function App() {
     poster: null,
   });
 
+  const palette: Palette = useMemo(
+    () =>
+      state.templateId === 'custom'
+        ? CUSTOM_PALETTE
+        : findTemplate(state.templateId).palette,
+    [state.templateId],
+  );
+
+  // Effect A: build the QR matrix and render the halftone canvas. Re-runs only
+  // when inputs that actually affect the QR change (URL, template/silhouette,
+  // and multiSize for verify). Caption/posterSize do NOT trigger this.
   useEffect(() => {
     let cancelled = false;
     setIsRendering(true);
 
-    async function pipeline() {
+    async function buildQr() {
       try {
         const url = effectiveUrl(state);
         const baseMatrix = buildMatrix(url);
@@ -99,21 +112,14 @@ export default function App() {
           colorHalftone: state.templateId === 'custom',
         });
 
-        const palette =
-          state.templateId === 'custom'
-            ? { accent: '#435ee5', fallbackDark: '#211922' }
-            : findTemplate(state.templateId).palette;
-        const poster = composePoster(qr, state.caption, state.posterSize, palette);
-
         const sizes = state.multiSize ? [qr.width, 200] : [qr.width];
         const results = verify(qr, sizes);
 
         if (cancelled) return;
         setQrCanvas(qr);
-        setPosterCanvas(poster);
         setScanResults(results);
         setErrorMessage(undefined);
-        lastGoodCanvasesRef.current = { qr, poster };
+        lastGoodCanvasesRef.current = { ...lastGoodCanvasesRef.current, qr };
       } catch (err) {
         if (cancelled) return;
         const last = lastGoodCanvasesRef.current;
@@ -131,11 +137,28 @@ export default function App() {
       }
     }
 
-    pipeline();
+    buildQr();
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [state.url, state.templateId, state.customSource, state.silhouetteScale, state.multiSize]);
+
+  // Effect B: compose the poster from the (already-rendered) QR canvas. This
+  // is cheap and runs whenever caption / posterSize / palette / qrCanvas
+  // changes — without re-running the QR pipeline.
+  useEffect(() => {
+    if (!qrCanvas) return;
+    try {
+      const poster = composePoster(qrCanvas, state.caption, state.posterSize, palette);
+      setPosterCanvas(poster);
+      lastGoodCanvasesRef.current = { ...lastGoodCanvasesRef.current, poster };
+    } catch (err) {
+      const last = lastGoodCanvasesRef.current;
+      setPosterCanvas(last.poster);
+      const msg = err instanceof Error ? err.message : 'Render failed';
+      setErrorMessage(msg);
+    }
+  }, [qrCanvas, state.caption, state.posterSize, palette]);
 
   const handleDecodeQrUpload = async (file: File) => {
     if (file.size > MAX_UPLOAD_BYTES) {

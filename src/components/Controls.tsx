@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { TemplatePicker } from './TemplatePicker';
 import { AdvancedOptions } from './AdvancedOptions';
+import { QrIcon } from './QrIcon';
 
 export interface ControlsProps {
   url: string;
@@ -44,31 +45,44 @@ export function Controls(props: ControlsProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <label className="block">
+      <div>
         <span className="mb-1 block text-sm font-medium text-plumblack">Link or text</span>
-        <input
-          type="text"
-          value={props.url}
-          onChange={(e) => props.onUrlChange(e.target.value)}
-          placeholder="https://www.instagram.com/ntu_astro/"
-          className="input-base w-full font-mono"
-          spellCheck={false}
-        />
-        <button
-          type="button"
-          onClick={() => document.getElementById(decodeInputId)?.click()}
-          className="mt-2 text-xs font-medium text-olivegray underline-offset-2 hover:text-plumblack hover:underline"
-        >
-          Or upload an existing QR image to decode
-        </button>
-        <input
-          id={decodeInputId}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={handleDecodeUpload}
-          className="hidden"
-        />
-      </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={props.url}
+            onChange={(e) => props.onUrlChange(e.target.value)}
+            placeholder="https://www.instagram.com/ntu_astro/"
+            className="input-base flex-1 font-mono"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            onClick={() => document.getElementById(decodeInputId)?.click()}
+            className="btn-secondary inline-flex shrink-0 items-center gap-2"
+            title="Upload an existing QR image and auto-fill the link"
+          >
+            <QrIcon className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Decode QR</span>
+          </button>
+          <input
+            id={decodeInputId}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={handleDecodeUpload}
+            className="hidden"
+          />
+        </div>
+        <p className="mt-1 text-xs text-olivegray">
+          Have an existing QR? Click{' '}
+          <QrIcon
+            className="inline-block h-3.5 w-3.5 align-[-2px] text-plumblack"
+            aria-label="Decode QR"
+            role="img"
+          />
+          {' '}to extract the link.
+        </p>
+      </div>
 
       <div>
         <span className="mb-2 block text-sm font-medium text-plumblack">Template</span>

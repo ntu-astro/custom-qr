@@ -3,11 +3,10 @@
 A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://www.instagram.com/ntu_astro/).
 
 ## Features
-- 7 built-in templates (Saturn, Telescope, Galaxy Spiral, Comet, Observatory Dome, NTU Astro mark, NTU Astro scene)
-- Upload your own PNG/SVG silhouette (≤ 2MB)
-- 4 halftone styles: Hybrid (default), Variable dot size, Stippling, QR-grid dithered
-- Adjustable density and margin
+- 6 built-in templates (Earth, Orion, Scorpius, Crux (Southern Cross), Sagittarius Teapot, NTUAS)
+- Upload your own PNG/SVG silhouette (≤ 10MB)
 - Image-derived dot color with luminosity-clamped QR data modules
+- Adjustable silhouette scale + optional print-size scan check
 - Live scan verification (screen-size, optional print-size 200×200px)
 - Three exports: QR-only PNG, QR-only SVG (PNG-embedded wrapper), Poster PNG (1080², 1080×1920, A4, custom)
 - Fully client-side. No tracking. No backend.
@@ -52,7 +51,7 @@ Canonical Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia) pipeline:
 - `src/components/*` — React UI
 - `src/App.tsx` + `src/appReducer.ts` — state + pipeline orchestration
 
-QRs are tested with a real smartphone camera — there is no in-browser scan verifier (canonical halftone QRs intentionally have no quiet zone, which trips strict pure-JS decoders even though phone cameras decode them fine).
+QRs are also checked live in the browser via a jsqr-based scan verifier (`src/lib/scanVerifier.ts`), which feeds the on-screen ScanBadge. Note that jsqr is stricter than real phone cameras — canonical halftone QRs intentionally have no quiet zone, which can trip pure-JS decoders even when phone cameras decode them fine, so the "may not scan" warning is conservative.
 
 ## License
 

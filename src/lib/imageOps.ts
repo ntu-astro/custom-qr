@@ -25,7 +25,7 @@ export function rasterizeSource(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.clearRect(0, 0, targetSize, targetSize);
-  const clampedScale = Math.min(1, Math.max(0.05, silhouetteScale));
+  const clampedScale = Math.min(1, Math.max(0.3, silhouetteScale));
   const innerSize = targetSize * clampedScale;
   const srcAspect = source.width / source.height;
   let drawW = innerSize, drawH = innerSize;
