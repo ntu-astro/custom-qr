@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage thresholds, CHANGELOG, .nvmrc, bundle-size budget added in tech-debt sweep.
 - Removed the GitHub Pages secondary deployment workflow — Cloudflare Pages is the
   sole deploy target. Vite `base` path env support reverted (no longer needed).
+- Bumped Node to 24.15.0 LTS (Krypton) in `.nvmrc` and `package.json#engines` to
+  `>=22.0.0`. Wrangler ≥4.88, miniflare, and `@cloudflare/kv-asset-handler` all
+  require Node ≥22; the prior `.nvmrc=20` blocked `npm run deploy` on Cloudflare Pages.
 
 ## [0.1.0] - 2026-05-07
 
