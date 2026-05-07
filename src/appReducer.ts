@@ -15,6 +15,8 @@ export interface AppState {
   posterSize: PosterSize;
   multiSize: boolean;
   background: string;
+  /** 0.3..1 — fraction of the QR canvas covered by the silhouette. */
+  silhouetteScale: number;
 }
 
 export type AppAction =
@@ -29,6 +31,7 @@ export type AppAction =
       patch: Partial<{
         multiSize: boolean;
         background: string;
+        silhouetteScale: number;
       }>;
     };
 
@@ -40,6 +43,7 @@ export const initialState: AppState = {
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
   multiSize: false,
   background: 'transparent',
+  silhouetteScale: 1,
 };
 
 export function reducer(state: AppState, action: AppAction): AppState {

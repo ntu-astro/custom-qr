@@ -84,6 +84,7 @@ export default function App() {
           baseMatrix.size,
           state.background,
           baseMatrix.importance,
+          state.silhouetteScale,
         );
         const { best } = pickBestMask(url, halftoneTarget);
 
@@ -93,6 +94,7 @@ export default function App() {
         const qr = renderHalftone(matrix, imageData, {
           marginPx: CANVAS_MARGIN_PX,
           background: state.background,
+          silhouetteScale: state.silhouetteScale,
         });
 
         const palette =
@@ -170,6 +172,7 @@ export default function App() {
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
           multiSize={state.multiSize}
           background={state.background}
+          silhouetteScale={state.silhouetteScale}
           onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}
           onCustomUpload={handleCustomUpload}
         />

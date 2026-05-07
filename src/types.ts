@@ -43,6 +43,10 @@ export interface RenderOptions {
   marginPx: number;
   /** Hex string or 'transparent'. */
   background: string;
+  /** 0.3..1 — fraction of the QR canvas covered by the silhouette source.
+   *  Values < 1 inset the silhouette toward the centre; the surrounding
+   *  padding renders as a regular QR. Defaults to 1 (full canvas). */
+  silhouetteScale?: number;
 }
 
 export const DEFAULT_PLACEHOLDER_URL = 'https://ntuastro.com';

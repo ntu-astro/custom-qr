@@ -15,10 +15,12 @@ export interface ControlsProps {
 
   multiSize: boolean;
   background: string;
+  silhouetteScale: number;
   onAdvancedChange: (
     patch: Partial<{
       multiSize: boolean;
       background: string;
+      silhouetteScale: number;
     }>,
   ) => void;
 
@@ -85,6 +87,7 @@ export function Controls(props: ControlsProps) {
           <AdvancedOptions
             multiSize={props.multiSize}
             background={props.background}
+            silhouetteScale={props.silhouetteScale}
             onChange={props.onAdvancedChange}
           />
         </div>

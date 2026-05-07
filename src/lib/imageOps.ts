@@ -3,8 +3,19 @@
 
 /** Render the source illustration into a `targetSize × targetSize` canvas with
  *  the given background filled in, then return the resulting ImageData.
- *  Letterboxes a non-square source to preserve aspect ratio. */
-export function rasterizeSource(source: ImageData, targetSize: number, background: string): ImageData {
+ *  Letterboxes a non-square source to preserve aspect ratio.
+ *
+ *  `silhouetteScale` (0 < s ≤ 1, default 1) shrinks the drawn silhouette
+ *  toward the canvas centre. The padding inherits whatever the background
+ *  fill is — transparent stays transparent (so those modules dither to the
+ *  importance floor and render as a normal QR), or solid background when
+ *  one is set. */
+export function rasterizeSource(
+  source: ImageData,
+  targetSize: number,
+  background: string,
+  silhouetteScale: number = 1,
+): ImageData {
   const srcCanvas = document.createElement('canvas');
   srcCanvas.width = source.width;
   srcCanvas.height = source.height;
@@ -22,12 +33,14 @@ export function rasterizeSource(source: ImageData, targetSize: number, backgroun
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, targetSize, targetSize);
   }
+  const clampedScale = Math.min(1, Math.max(0.05, silhouetteScale));
+  const innerSize = targetSize * clampedScale;
   const srcAspect = source.width / source.height;
-  let drawW = targetSize, drawH = targetSize;
+  let drawW = innerSize, drawH = innerSize;
   if (srcAspect > 1) {
-    drawH = targetSize / srcAspect;
+    drawH = innerSize / srcAspect;
   } else if (srcAspect < 1) {
-    drawW = targetSize * srcAspect;
+    drawW = innerSize * srcAspect;
   }
   const drawX = (targetSize - drawW) / 2;
   const drawY = (targetSize - drawH) / 2;

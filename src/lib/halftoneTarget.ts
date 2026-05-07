@@ -34,6 +34,7 @@ export function computeHalftoneTarget(
   size: number,
   background: string,
   baseImportance: number[][],
+  silhouetteScale: number = 1,
 ): HalftoneTarget {
   // The dither pass is the canonical signal of "where the source wants ink".
   // We rasterise with the user-chosen background composited in (so transparent
@@ -41,7 +42,7 @@ export function computeHalftoneTarget(
   // both the per-module target AND its importance weight from the dithered
   // bitmap: dark modules of the target carry full weight (1.0) because that's
   // the silhouette; light modules drop to the floor.
-  const rasterised = rasterizeSource(source, size, background);
+  const rasterised = rasterizeSource(source, size, background, silhouetteScale);
   const binary = ditherFloydSteinberg(rasterised);
 
   const target: boolean[][] = [];

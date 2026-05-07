@@ -137,12 +137,13 @@ function renderHalftone(
   marginCells: number,
   cellPx: number,
   background: string,
+  silhouetteScale: number,
 ) {
   const subPx = cellPx / 3;
   const totalCells = matrix.size + 2 * marginCells;
   const canvasSubSize = totalCells * 3;
 
-  const rasterised = rasterizeSource(source, canvasSubSize, background);
+  const rasterised = rasterizeSource(source, canvasSubSize, background, silhouetteScale);
   const lifted = liftMarginBrightness(rasterised, marginCells, matrix.size);
   const binary = ditherFloydSteinberg(lifted);
   const ink = pickInkColor(source);
@@ -214,6 +215,6 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
   ctx.imageSmoothingEnabled = false;
 
   fillBackground(ctx, sizePx, sizePx, opts.background);
-  renderHalftone(ctx, matrix, source, marginCells, cellPx, opts.background);
+  renderHalftone(ctx, matrix, source, marginCells, cellPx, opts.background, opts.silhouetteScale ?? 1);
   return canvas;
 }
