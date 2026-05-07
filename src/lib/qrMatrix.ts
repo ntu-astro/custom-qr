@@ -1,10 +1,10 @@
 import QRCode from 'qrcode';
-import type { QRMatrix } from '../types';
+import type { MaskPattern, QRMatrix } from '../types';
 import { QR_ECC_LEVEL } from '../types';
 
 export interface BuildMatrixOptions {
   /** Override the QR mask pattern (0..7). Default: let qrcode auto-pick. */
-  maskPattern?: number;
+  maskPattern?: MaskPattern;
 }
 
 export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRMatrix {
@@ -12,7 +12,7 @@ export function buildMatrix(text: string, options: BuildMatrixOptions = {}): QRM
   const qr = options.maskPattern !== undefined
     ? QRCode.create(input, {
         errorCorrectionLevel: QR_ECC_LEVEL,
-        maskPattern: options.maskPattern as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7,
+        maskPattern: options.maskPattern,
       })
     : QRCode.create(input, { errorCorrectionLevel: QR_ECC_LEVEL });
   const size: number = qr.modules.size;

@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react';
+import type { AdvancedSettings } from '../appReducer';
 import { TemplatePicker } from './TemplatePicker';
 import { AdvancedOptions } from './AdvancedOptions';
 import { QrIcon } from './QrIcon';
@@ -16,12 +17,7 @@ export interface ControlsProps {
 
   multiSize: boolean;
   silhouetteScale: number;
-  onAdvancedChange: (
-    patch: Partial<{
-      multiSize: boolean;
-      silhouetteScale: number;
-    }>,
-  ) => void;
+  onAdvancedChange: (patch: Partial<AdvancedSettings>) => void;
 
   onCustomUpload: (file: File) => void;
   onDecodeQrUpload: (file: File) => void;

@@ -71,10 +71,6 @@ export function QrPreview({
     if (!mount) return;
     mount.replaceChildren();
     if (qrCanvas) {
-      qrCanvas.style.maxWidth = '100%';
-      qrCanvas.style.height = 'auto';
-      qrCanvas.style.imageRendering = 'pixelated';
-      qrCanvas.style.borderRadius = '20px';
       mount.appendChild(qrCanvas);
     }
   }, [qrCanvas]);
@@ -102,7 +98,7 @@ export function QrPreview({
       <div
         ref={mountRef}
         className={
-          'relative aspect-square w-full overflow-hidden rounded-card border border-sandgray bg-fog ' +
+          'relative aspect-square w-full overflow-hidden rounded-card border border-sandgray bg-fog [&>canvas]:max-w-full [&>canvas]:h-auto [&>canvas]:rounded-card [&>canvas]:[image-rendering:pixelated] ' +
           (isRendering ? 'animate-pulse' : '')
         }
         aria-live="polite"

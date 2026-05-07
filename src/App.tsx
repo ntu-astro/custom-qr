@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { Palette, ScanResult } from './types';
+import { DEFAULT_PLACEHOLDER_URL } from './types';
 import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
@@ -11,9 +12,10 @@ import { render as renderHalftone } from './lib/halftoneRenderer';
 import { composePoster } from './lib/composer';
 import { verify } from './lib/scanVerifier';
 import { decodeQrImage } from './lib/decodeQrImage';
-import { reducer, initialState, effectiveUrl } from './appReducer';
+import { reducer, initialState } from './appReducer';
+import { loadImageData, readFileAsDataUrl } from './lib/imageOps';
 
-const CUSTOM_PALETTE: Palette = { accent: '#435ee5', fallbackDark: '#211922' };
+const CUSTOM_PALETTE: Palette = { accent: '#435ee5' };
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 // No quiet zone — canvas equals matrix.size × cellPx, silhouette fills the whole
@@ -21,49 +23,13 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 // use the printed copy on a real phone to confirm scanability before shipping.
 const CANVAS_MARGIN_PX = 0;
 
-async function loadImageData(src: string): Promise<ImageData> {
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
-  });
-  const canvas = document.createElement('canvas');
-  const targetSide = 1024;
-  canvas.width = targetSide;
-  canvas.height = targetSide;
-  const ctx = canvas.getContext('2d')!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.clearRect(0, 0, targetSide, targetSide);
-  const ratio = Math.min(targetSide / img.width, targetSide / img.height);
-  const w = img.width * ratio;
-  const h = img.height * ratio;
-  ctx.drawImage(img, (targetSide - w) / 2, (targetSide - h) / 2, w, h);
-  return ctx.getImageData(0, 0, targetSide, targetSide);
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error('FileReader error'));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [posterCanvas, setPosterCanvas] = useState<HTMLCanvasElement | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isRendering, setIsRendering] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
-  const lastGoodCanvasesRef = useRef<{ qr: HTMLCanvasElement | null; poster: HTMLCanvasElement | null }>({
-    qr: null,
-    poster: null,
-  });
+  const lastGoodQrRef = useRef<HTMLCanvasElement | null>(null);
 
   const palette: Palette = useMemo(
     () =>
@@ -73,22 +39,30 @@ export default function App() {
     [state.templateId],
   );
 
+  // Pull out the exact slice of state Effect A depends on so eslint-react-hooks
+  // can verify exhaustive deps without us listing the whole `state` object
+  // (which would re-run the QR pipeline on caption/posterSize edits — see
+  // Effect B for those).
+  const { url, templateId, customSource, silhouetteScale, multiSize, caption, posterSize } = state;
+
   // Effect A: build the QR matrix and render the halftone canvas. Re-runs only
   // when inputs that actually affect the QR change (URL, template/silhouette,
   // and multiSize for verify). Caption/posterSize do NOT trigger this.
   useEffect(() => {
     let cancelled = false;
-    setIsRendering(true);
 
     async function buildQr() {
+      // setState lives inside the async fn (after the synchronous effect body
+      // returns) so this isn't a synchronous setState-in-effect.
+      setIsRendering(true);
       try {
-        const url = effectiveUrl(state);
-        const baseMatrix = buildMatrix(url);
+        const resolvedUrl = url.trim() || DEFAULT_PLACEHOLDER_URL;
+        const baseMatrix = buildMatrix(resolvedUrl);
 
         const sourcePath =
-          state.templateId === 'custom' && state.customSource
-            ? state.customSource.dataUrl
-            : findTemplate(state.templateId).sourcePath;
+          templateId === 'custom' && customSource
+            ? customSource.dataUrl
+            : findTemplate(templateId).sourcePath;
         const imageData = await loadImageData(sourcePath);
 
         // Stage 2: pick the QR mask whose post-mask bit pattern best matches
@@ -97,34 +71,32 @@ export default function App() {
           imageData,
           baseMatrix.size,
           baseMatrix.importance,
-          state.silhouetteScale,
+          silhouetteScale,
         );
-        const { best } = pickBestMask(url, halftoneTarget);
+        const { best } = pickBestMask(resolvedUrl, halftoneTarget);
 
         // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
         const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
 
         const qr = renderHalftone(matrix, imageData, {
           marginPx: CANVAS_MARGIN_PX,
-          silhouetteScale: state.silhouetteScale,
+          silhouetteScale,
           // Custom uploads are assumed to be colour photos; built-in templates
           // are pure-black silhouettes where colour halftone has no effect.
-          colorHalftone: state.templateId === 'custom',
+          colorHalftone: templateId === 'custom',
         });
 
-        const sizes = state.multiSize ? [qr.width, 200] : [qr.width];
+        const sizes = multiSize ? [qr.width, 200] : [qr.width];
         const results = verify(qr, sizes);
 
         if (cancelled) return;
         setQrCanvas(qr);
         setScanResults(results);
         setErrorMessage(undefined);
-        lastGoodCanvasesRef.current = { ...lastGoodCanvasesRef.current, qr };
+        lastGoodQrRef.current = qr;
       } catch (err) {
         if (cancelled) return;
-        const last = lastGoodCanvasesRef.current;
-        setQrCanvas(last.qr);
-        setPosterCanvas(last.poster);
+        setQrCanvas(lastGoodQrRef.current);
         setScanResults([]);
         const msg = err instanceof Error ? err.message : 'Render failed';
         if (/too long/i.test(msg) || /not enough|no version|cannot encode/i.test(msg)) {
@@ -141,24 +113,20 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [state.url, state.templateId, state.customSource, state.silhouetteScale, state.multiSize]);
+  }, [url, templateId, customSource, silhouetteScale, multiSize]);
 
-  // Effect B: compose the poster from the (already-rendered) QR canvas. This
-  // is cheap and runs whenever caption / posterSize / palette / qrCanvas
-  // changes — without re-running the QR pipeline.
-  useEffect(() => {
-    if (!qrCanvas) return;
+  // Compose the poster from the rendered QR canvas. Pure derivation of state,
+  // so useMemo (not an effect) — re-runs when caption/posterSize/palette/qrCanvas change.
+  // composePoster is sync and effectively throw-free; on the rare failure we
+  // simply yield null and disable the download button (handled in QrPreview).
+  const posterCanvas = useMemo<HTMLCanvasElement | null>(() => {
+    if (!qrCanvas) return null;
     try {
-      const poster = composePoster(qrCanvas, state.caption, state.posterSize, palette);
-      setPosterCanvas(poster);
-      lastGoodCanvasesRef.current = { ...lastGoodCanvasesRef.current, poster };
-    } catch (err) {
-      const last = lastGoodCanvasesRef.current;
-      setPosterCanvas(last.poster);
-      const msg = err instanceof Error ? err.message : 'Render failed';
-      setErrorMessage(msg);
+      return composePoster(qrCanvas, caption, posterSize, palette);
+    } catch {
+      return null;
     }
-  }, [qrCanvas, state.caption, state.posterSize, palette]);
+  }, [qrCanvas, caption, posterSize, palette]);
 
   const handleDecodeQrUpload = async (file: File) => {
     if (file.size > MAX_UPLOAD_BYTES) {

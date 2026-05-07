@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { composePoster } from './composer';
 import type { Palette, PosterSize } from '../types';
 
-const palette: Palette = { accent: '#435ee5', fallbackDark: '#211922' };
+const palette: Palette = { accent: '#435ee5' };
 
 function makeQrCanvas(size = 200): HTMLCanvasElement {
   const c = document.createElement('canvas');

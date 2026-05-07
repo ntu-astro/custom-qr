@@ -74,3 +74,37 @@ export function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
   return out;
 }
 
+/** Load an image from a URL or data URL into a centred 1024×1024 ImageData,
+ *  preserving aspect ratio with transparent letterboxing. */
+export async function loadImageData(src: string): Promise<ImageData> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+  const canvas = document.createElement('canvas');
+  const targetSide = 1024;
+  canvas.width = targetSide;
+  canvas.height = targetSide;
+  const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.clearRect(0, 0, targetSide, targetSide);
+  const ratio = Math.min(targetSide / img.width, targetSide / img.height);
+  const w = img.width * ratio;
+  const h = img.height * ratio;
+  ctx.drawImage(img, (targetSide - w) / 2, (targetSide - h) / 2, w, h);
+  return ctx.getImageData(0, 0, targetSide, targetSide);
+}
+
+/** Read a File (e.g. from an `<input type="file">`) as a base64 data URL. */
+export function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader error'));
+    reader.readAsDataURL(file);
+  });
+}

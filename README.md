@@ -6,6 +6,8 @@ A small, polished web app that turns any URL into a halftone-style QR code with 
 - 6 built-in templates (Earth, Orion, Scorpius, Crux (Southern Cross), Sagittarius Teapot, NTUAS)
 - Upload your own PNG/SVG silhouette (≤ 10MB)
 - Image-derived dot color with luminosity-clamped QR data modules
+- Auto-color halftone for uploaded silhouettes (per-pixel hue preserved, contrast-clamped)
+- Decode QR: upload an existing QR image to recover its URL/text and re-stylise it
 - Adjustable silhouette scale + optional print-size scan check
 - Live scan verification (screen-size, optional print-size 200×200px)
 - Three exports: QR-only PNG, QR-only SVG (PNG-embedded wrapper), Poster PNG (1080², 1080×1920, A4, custom)
@@ -16,10 +18,15 @@ A small, polished web app that turns any URL into a halftone-style QR code with 
 ```bash
 npm install
 npm run dev         # vite dev server on :5173
-npm test            # vitest run, ~18 tests
+npm test            # vitest run, 36 unit tests
+npm run test:e2e    # playwright chromium smoke (6 tests, builds first)
 npm run lint        # tsc --noEmit
 npm run build       # → dist/
 ```
+
+## CI / E2E
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, unit tests, build, and the Playwright smoke suite on every push and pull request, so a green main reflects all four gates.
 
 ## Asset prep
 
@@ -42,11 +49,15 @@ Or connect this repo to a Cloudflare Pages project with build command `npm run b
 Canonical Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia) pipeline:
 
 - `src/lib/qrMatrix.ts` — QR module matrix + reserved-cell importance map
+- `src/lib/imageOps.ts` — pure canvas / image-data helpers (rasterise + Floyd–Steinberg dither + image loading utils)
 - `src/lib/halftoneTarget.ts` — dither the source illustration to per-module targets
 - `src/lib/maskOptimizer.ts` — Stage 2: pick the QR mask whose post-mask bits best match the silhouette
+- `src/lib/codewordLayout.ts` — module ↔ codeword inverse map for ECC-H QR symbols (used by Stage 3 to budget flips per RS block)
 - `src/lib/moduleFlipper.ts` — Stage 3a: per-RS-block greedy module flips paid for by ECC slack (paper budget 0.49 × ecCount)
 - `src/lib/halftoneRenderer.ts` — sub-pixel halftone (3×3 grid per module, centre 1/9 stamp), pure black-on-white, no quiet zone
 - `src/lib/composer.ts` — poster layout (separate from the QR rendering itself)
+- `src/lib/scanVerifier.ts` — jsqr-based in-browser scan check at multiple sizes
+- `src/lib/decodeQrImage.ts` — decode an uploaded QR image back to its URL/text (the "Decode QR" button feature)
 - `src/templates/presets.ts` — template registry
 - `src/components/*` — React UI
 - `src/App.tsx` + `src/appReducer.ts` — state + pipeline orchestration

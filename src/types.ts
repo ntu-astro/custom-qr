@@ -7,8 +7,6 @@ export type PosterSize =
 export interface Palette {
   /** Hex color used for the halo + accents around the safe zone. */
   accent: string;
-  /** Hex color used for fallback module fill if source image is fully transparent. */
-  fallbackDark: string;
 }
 
 export interface TemplatePreset {
@@ -53,3 +51,8 @@ export interface RenderOptions {
 
 export const DEFAULT_PLACEHOLDER_URL = 'https://www.instagram.com/ntu_astro/';
 export const QR_ECC_LEVEL = 'H' as const;
+
+export type MaskPattern = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export const FONT_STACK_CANVAS =
+  '"Inter Variable", "Inter", "Pin Sans", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif';

@@ -1,4 +1,5 @@
 import type { Palette, PosterSize } from '../types';
+import { FONT_STACK_CANVAS } from '../types';
 
 const SAFE_ZONE_FRACTION = 0.75;
 const QR_BAND_FRACTION = 0.75;
@@ -67,8 +68,7 @@ export function composePoster(
   const out = document.createElement('canvas');
   out.width = size.width;
   out.height = size.height;
-  out.dataset.fontFamily =
-    '"Inter Variable", "Inter", "Pin Sans", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif';
+  out.dataset.fontFamily = FONT_STACK_CANVAS;
   const ctx = out.getContext('2d')!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';

@@ -1,12 +1,9 @@
+import type { AdvancedSettings } from '../appReducer';
+
 interface Props {
   multiSize: boolean;
   silhouetteScale: number;
-  onChange: (
-    patch: Partial<{
-      multiSize: boolean;
-      silhouetteScale: number;
-    }>,
-  ) => void;
+  onChange: (patch: Partial<AdvancedSettings>) => void;
 }
 
 export function AdvancedOptions({ multiSize, silhouetteScale, onChange }: Props) {
