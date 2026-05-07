@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -26,11 +26,26 @@ jobs:
       - name: Lint (eslint)
         run: npm run lint
 
-      - name: Test
-        run: npm test
+      - name: Test (with coverage)
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
+
+      - name: Bundle size budget
+        run: |
+          limit=358400
+          total=0
+          for f in dist/assets/*.js; do
+            size=$(gzip -c "$f" | wc -c)
+            total=$((total + size))
+            echo "$(basename "$f"): $size bytes (gzipped)"
+          done
+          echo "Total gzipped JS: $total bytes (limit: $limit bytes)"
+          if [ "$total" -gt "$limit" ]; then
+            echo "::error::Bundle size $total bytes exceeds 350 KB budget ($limit bytes)"
+            exit 1
+          fi
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium

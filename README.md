@@ -35,7 +35,7 @@ Two NTU templates ship as best-effort placeholders. Maintainers can regenerate t
 
 ## Deploy
 
-Hosted on Cloudflare Pages.
+**Primary: Cloudflare Pages.** Auto-deploys from `main` via Cloudflare's GitHub integration (configured in the Cloudflare dashboard, not in this repo). For one-off manual deploys:
 
 ```bash
 npx wrangler login        # one-time
@@ -44,6 +44,8 @@ npm run deploy
 ```
 
 Or connect this repo to a Cloudflare Pages project with build command `npm run build` and output directory `dist`.
+
+**Secondary: GitHub Pages mirror.** [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds with `BASE_PATH=/custom-qr/` and publishes to `https://ntu-astro.github.io/custom-qr/` on every push to `main`. Before the first deploy, enable GitHub Pages in repo Settings → Pages → Source: **GitHub Actions**.
 
 ## Project layout
 

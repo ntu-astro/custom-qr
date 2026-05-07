@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PosterSize, ScanResult } from '../types';
+import { clampSide } from '../lib/posterSize';
 import { ScanBadge } from './ScanBadge';
 
 interface Props {
@@ -188,7 +189,3 @@ function PosterSizePicker({
   );
 }
 
-function clampSide(v: number): number {
-  if (!Number.isFinite(v) || v <= 0) return 1080;
-  return Math.min(8000, Math.max(64, Math.round(v)));
-}
