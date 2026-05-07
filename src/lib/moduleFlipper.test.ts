@@ -48,7 +48,7 @@ describe('flipModulesByCodeword', () => {
   it('respects the per-block flip budget', () => {
     const baseMatrix = buildMatrix(text);
     const target = computeHalftoneTarget(
-      silhouetteImageData(256, 256), baseMatrix.size, '#ffffff', baseMatrix.importance,
+      silhouetteImageData(256, 256), baseMatrix.size, baseMatrix.importance,
     );
     const matrix = pickBestMask(text, target).best.matrix;
     const layout = getEccLayoutForH(matrix.size);
@@ -65,7 +65,7 @@ describe('flipModulesByCodeword', () => {
   it('reduces matrix-vs-target disagreement (importance-weighted)', () => {
     const baseMatrix = buildMatrix(text);
     const target = computeHalftoneTarget(
-      silhouetteImageData(256, 256), baseMatrix.size, '#ffffff', baseMatrix.importance,
+      silhouetteImageData(256, 256), baseMatrix.size, baseMatrix.importance,
     );
     const matrix = pickBestMask(text, target).best.matrix;
 

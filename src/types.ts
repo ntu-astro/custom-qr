@@ -41,12 +41,14 @@ export interface ScanResult {
 export interface RenderOptions {
   /** 0..60 — pixels of extra dithered canvas around the QR data area. */
   marginPx: number;
-  /** Hex string or 'transparent'. */
-  background: string;
   /** 0.3..1 — fraction of the QR canvas covered by the silhouette source.
    *  Values < 1 inset the silhouette toward the centre; the surrounding
    *  padding renders as a regular QR. Defaults to 1 (full canvas). */
   silhouetteScale?: number;
+  /** When true, the silhouette's "ink" sub-pixels carry the source's per-pixel
+   *  colour (clamped for darkness) instead of a single dominant tone.
+   *  Best with colourful uploaded photos. Defaults to false. */
+  colorHalftone?: boolean;
 }
 
 export const DEFAULT_PLACEHOLDER_URL = 'https://www.instagram.com/ntu_astro/';

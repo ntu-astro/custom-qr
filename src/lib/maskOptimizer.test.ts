@@ -35,7 +35,7 @@ describe('pickBestMask', () => {
 
   it('returns 8 scored masks, sorted ascending by score', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, '#ffffff', base.importance);
+    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
     const { best, scores } = pickBestMask(text, target);
 
     expect(scores).toHaveLength(8);
@@ -48,8 +48,8 @@ describe('pickBestMask', () => {
 
   it('chooses different masks for different targets', () => {
     const base = buildMatrix(text);
-    const blackTarget = computeHalftoneTarget(blackImageData(256, 256), base.size, '#ffffff', base.importance);
-    const silTarget = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, '#ffffff', base.importance);
+    const blackTarget = computeHalftoneTarget(blackImageData(256, 256), base.size, base.importance);
+    const silTarget = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
 
     const blackBest = pickBestMask(text, blackTarget).best.maskPattern;
     const silBest = pickBestMask(text, silTarget).best.maskPattern;
@@ -67,7 +67,7 @@ describe('pickBestMask', () => {
 
   it('attaches the image-weighted importance to the returned matrix', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, '#ffffff', base.importance);
+    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.importance);
     const { best } = pickBestMask(text, target);
     // Reserved cells stay at 0.
     expect(best.matrix.importance[0][0]).toBe(0);

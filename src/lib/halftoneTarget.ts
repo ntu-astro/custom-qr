@@ -32,17 +32,16 @@ const NON_SILHOUETTE_FLOOR = 0.1;
 export function computeHalftoneTarget(
   source: ImageData,
   size: number,
-  background: string,
   baseImportance: number[][],
   silhouetteScale: number = 1,
 ): HalftoneTarget {
   // The dither pass is the canonical signal of "where the source wants ink".
-  // We rasterise with the user-chosen background composited in (so transparent
-  // SVG silhouettes dither against e.g. white as intended) and then derive
-  // both the per-module target AND its importance weight from the dithered
-  // bitmap: dark modules of the target carry full weight (1.0) because that's
-  // the silhouette; light modules drop to the floor.
-  const rasterised = rasterizeSource(source, size, background, silhouetteScale);
+  // We rasterise onto a transparent canvas (the dither blends transparent
+  // against white internally), then derive both the per-module target AND its
+  // importance weight from the dithered bitmap: dark modules of the target
+  // carry full weight (1.0) because that's the silhouette; light modules drop
+  // to the floor.
+  const rasterised = rasterizeSource(source, size, silhouetteScale);
   const binary = ditherFloydSteinberg(rasterised);
 
   const target: boolean[][] = [];

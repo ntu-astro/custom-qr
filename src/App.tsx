@@ -10,9 +10,10 @@ import { flipModulesByCodeword } from './lib/moduleFlipper';
 import { render as renderHalftone } from './lib/halftoneRenderer';
 import { composePoster } from './lib/composer';
 import { verify } from './lib/scanVerifier';
+import { decodeQrImage } from './lib/decodeQrImage';
 import { reducer, initialState, effectiveUrl } from './appReducer';
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 // No quiet zone — canvas equals matrix.size × cellPx, silhouette fills the whole
 // output. Phone scanners may struggle with halftone QRs that lack a quiet zone;
 // use the printed copy on a real phone to confirm scanability before shipping.
@@ -82,7 +83,6 @@ export default function App() {
         const halftoneTarget = computeHalftoneTarget(
           imageData,
           baseMatrix.size,
-          state.background,
           baseMatrix.importance,
           state.silhouetteScale,
         );
@@ -93,8 +93,10 @@ export default function App() {
 
         const qr = renderHalftone(matrix, imageData, {
           marginPx: CANVAS_MARGIN_PX,
-          background: state.background,
           silhouetteScale: state.silhouetteScale,
+          // Custom uploads are assumed to be colour photos; built-in templates
+          // are pure-black silhouettes where colour halftone has no effect.
+          colorHalftone: state.templateId === 'custom',
         });
 
         const palette =
@@ -135,13 +137,31 @@ export default function App() {
     };
   }, [state]);
 
-  const handleCustomUpload = async (file: File) => {
+  const handleDecodeQrUpload = async (file: File) => {
     if (file.size > MAX_UPLOAD_BYTES) {
-      setErrorMessage('File is larger than 2MB. Pick a smaller PNG or SVG.');
+      setErrorMessage('File is larger than 10MB. Pick a smaller image.');
       return;
     }
-    if (!/^image\/(png|svg\+xml)$/i.test(file.type)) {
-      setErrorMessage('Only PNG and SVG uploads are supported.');
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      setErrorMessage('Only PNG, JPG, or WebP images can be decoded.');
+      return;
+    }
+    try {
+      const decoded = await decodeQrImage(file);
+      dispatch({ type: 'SET_URL', value: decoded });
+      setErrorMessage(undefined);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not decode QR');
+    }
+  };
+
+  const handleCustomUpload = async (file: File) => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setErrorMessage('File is larger than 10MB. Pick a smaller PNG or SVG.');
+      return;
+    }
+    if (!/^image\/(png|svg\+xml|jpe?g|webp)$/i.test(file.type)) {
+      setErrorMessage('Only PNG, JPG, WebP, or SVG uploads are supported.');
       return;
     }
     try {
@@ -171,10 +191,10 @@ export default function App() {
           caption={state.caption}
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
           multiSize={state.multiSize}
-          background={state.background}
           silhouetteScale={state.silhouetteScale}
           onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}
           onCustomUpload={handleCustomUpload}
+          onDecodeQrUpload={handleDecodeQrUpload}
         />
         <QrPreview
           qrCanvas={qrCanvas}

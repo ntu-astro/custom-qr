@@ -1,19 +1,16 @@
 /** Shared canvas / image-data helpers for the halftone renderer and the
  *  Stage-2 mask optimiser. Pure, no React, no QR knowledge. */
 
-/** Render the source illustration into a `targetSize × targetSize` canvas with
- *  the given background filled in, then return the resulting ImageData.
- *  Letterboxes a non-square source to preserve aspect ratio.
+/** Render the source illustration into a `targetSize × targetSize` transparent
+ *  canvas, then return the resulting ImageData. Letterboxes a non-square source
+ *  to preserve aspect ratio.
  *
  *  `silhouetteScale` (0 < s ≤ 1, default 1) shrinks the drawn silhouette
- *  toward the canvas centre. The padding inherits whatever the background
- *  fill is — transparent stays transparent (so those modules dither to the
- *  importance floor and render as a normal QR), or solid background when
- *  one is set. */
+ *  toward the canvas centre. The surrounding padding stays transparent — those
+ *  modules dither to the importance floor and render as a regular QR. */
 export function rasterizeSource(
   source: ImageData,
   targetSize: number,
-  background: string,
   silhouetteScale: number = 1,
 ): ImageData {
   const srcCanvas = document.createElement('canvas');
@@ -27,12 +24,7 @@ export function rasterizeSource(
   const ctx = tgtCanvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  if (background === 'transparent') {
-    ctx.clearRect(0, 0, targetSize, targetSize);
-  } else {
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, targetSize, targetSize);
-  }
+  ctx.clearRect(0, 0, targetSize, targetSize);
   const clampedScale = Math.min(1, Math.max(0.05, silhouetteScale));
   const innerSize = targetSize * clampedScale;
   const srcAspect = source.width / source.height;
@@ -82,23 +74,3 @@ export function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
   return out;
 }
 
-const HEX6 = /^#([0-9a-f]{6})$/i;
-const HEX3 = /^#([0-9a-f]{3})$/i;
-
-export function parseHexColor(hex: string): { r: number; g: number; b: number } {
-  const trimmed = hex.trim();
-  const m = trimmed.match(HEX6) ?? trimmed.match(HEX3);
-  if (!m) return { r: 255, g: 255, b: 255 };
-  if (m[1].length === 3) {
-    return {
-      r: parseInt(m[1][0] + m[1][0], 16),
-      g: parseInt(m[1][1] + m[1][1], 16),
-      b: parseInt(m[1][2] + m[1][2], 16),
-    };
-  }
-  return {
-    r: parseInt(m[1].slice(0, 2), 16),
-    g: parseInt(m[1].slice(2, 4), 16),
-    b: parseInt(m[1].slice(4, 6), 16),
-  };
-}

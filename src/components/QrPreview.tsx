@@ -38,6 +38,22 @@ function svgWrap(canvas: HTMLCanvasElement): string {
 </svg>`;
 }
 
+/** Flatten a transparent QR canvas onto white before PNG export. The renderer
+ *  emits transparent pixels for "light" modules, which previews fine on the
+ *  app's light card but lets the dark ink dots disappear into dark backgrounds
+ *  (e.g. macOS Preview's dark mode). The SVG export keeps transparency since
+ *  designers typically want to composite it themselves. */
+function flattenedPngDataUrl(canvas: HTMLCanvasElement): string {
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const ctx = out.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(canvas, 0, 0);
+  return out.toDataURL('image/png');
+}
+
 export function QrPreview({
   qrCanvas,
   posterCanvas,
@@ -65,7 +81,7 @@ export function QrPreview({
 
   const handlePng = () => {
     if (!qrCanvas) return;
-    downloadDataUrl('astro-qr.png', qrCanvas.toDataURL('image/png'));
+    downloadDataUrl('astro-qr.png', flattenedPngDataUrl(qrCanvas));
   };
 
   const handleSvg = () => {

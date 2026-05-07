@@ -1,5 +1,5 @@
 import type { QRMatrix, RenderOptions } from '../types';
-import { rasterizeSource, ditherFloydSteinberg, parseHexColor } from './imageOps';
+import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
 
 // 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
 // Implements Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia): paint a Floyd–Steinberg
@@ -20,15 +20,6 @@ function clampLuminosity(r: number, g: number, b: number, maxBrightness = 0.45) 
     g: Math.round(g * k),
     b: Math.round(b * k),
   };
-}
-
-function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bg: string) {
-  if (bg === 'transparent') {
-    ctx.clearRect(0, 0, w, h);
-    return;
-  }
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
 }
 
 /** Pick a dominant non-background "ink" colour out of the source so the silhouette
@@ -62,6 +53,8 @@ interface CellContext {
   inMatrix: boolean;
   isReserved: boolean;
   isModuleDark: boolean;
+  mx: number;
+  my: number;
 }
 
 function eachCell(
@@ -82,7 +75,7 @@ function eachCell(
       const my = y - marginCells;
       const isReserved = inMatrix && matrix.importance[my][mx] === 0;
       const isModuleDark = inMatrix && matrix.modules[my][mx];
-      visit({ px, py, inMatrix, isReserved, isModuleDark });
+      visit({ px, py, inMatrix, isReserved, isModuleDark, mx, my });
     }
   }
 }
@@ -130,41 +123,86 @@ function liftMarginBrightness(rasterised: ImageData, marginCells: number, matrix
   return out;
 }
 
+/** When the user enables "color halftone", each ink sub-pixel keeps the source
+ *  colour at that position rather than collapsing to a single dominant tone.
+ *  Sub-pixel colours are clamped so their luminance stays under MAX_INK_LUM —
+ *  jsqr only locks on if dark modules read clearly darker than light modules. */
+const MAX_INK_LUM = 0.45;
+
+function readPixel(data: Uint8ClampedArray, idx4: number): { r: number; g: number; b: number } {
+  const a = data[idx4 + 3] / 255;
+  return {
+    r: Math.round(data[idx4] * a + 255 * (1 - a)),
+    g: Math.round(data[idx4 + 1] * a + 255 * (1 - a)),
+    b: Math.round(data[idx4 + 2] * a + 255 * (1 - a)),
+  };
+}
+
+/** A source sub-pixel is treated as "outside the silhouette" when it is either
+ *  largely transparent (PNG/SVG) or near-white (JPEG/photo with white
+ *  background). In both cases colour halftoning falls back to the structural
+ *  ink so the QR's dark-module stamps stay pure dark instead of fading toward
+ *  whatever neutral the photo's background happens to be. */
+const SILHOUETTE_ALPHA_THRESHOLD = 0.4;
+const SILHOUETTE_MAX_LUM = 0.85;
+
+/** Plum-black used for finders, timing, alignment, and any QR data stamps that
+ *  fall outside the silhouette while colour halftone is on. Picking the
+ *  dominant photo tint there would tint the corner squares (e.g. bronze for a
+ *  rainbow photo) and hurt finder-pattern detection. */
+const STRUCTURAL_INK: InkColor = { r: 33, g: 25, b: 34 };
+const STRUCTURAL_INK_RGB = `rgb(${STRUCTURAL_INK.r},${STRUCTURAL_INK.g},${STRUCTURAL_INK.b})`;
+
+function isOutsideSilhouette(data: Uint8ClampedArray, idx4: number): boolean {
+  const a = data[idx4 + 3] / 255;
+  if (a < SILHOUETTE_ALPHA_THRESHOLD) return true;
+  const r = data[idx4] * a + 255 * (1 - a);
+  const g = data[idx4 + 1] * a + 255 * (1 - a);
+  const b = data[idx4 + 2] * a + 255 * (1 - a);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > SILHOUETTE_MAX_LUM;
+}
+
 function renderHalftone(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
   source: ImageData,
   marginCells: number,
   cellPx: number,
-  background: string,
   silhouetteScale: number,
+  colorHalftone: boolean,
 ) {
   const subPx = cellPx / 3;
   const totalCells = matrix.size + 2 * marginCells;
   const canvasSubSize = totalCells * 3;
 
-  const rasterised = rasterizeSource(source, canvasSubSize, background, silhouetteScale);
+  const rasterised = rasterizeSource(source, canvasSubSize, silhouetteScale);
   const lifted = liftMarginBrightness(rasterised, marginCells, matrix.size);
   const binary = ditherFloydSteinberg(lifted);
-  const ink = pickInkColor(source);
-  const inkRgb = `rgb(${ink.r},${ink.g},${ink.b})`;
+  // Silhouette ink: tinted by the dominant photo tone for monochrome mode, or
+  // pure plum-black for colour halftone (so the colour effect lives only inside
+  // the silhouette, never in finders/timing/data-dot stamps).
+  const silhouetteInk = colorHalftone ? STRUCTURAL_INK : pickInkColor(source);
+  const silhouetteInkRgb = colorHalftone
+    ? STRUCTURAL_INK_RGB
+    : `rgb(${silhouetteInk.r},${silhouetteInk.g},${silhouetteInk.b})`;
 
-  const isTransparentBg = background === 'transparent';
-  const bgRgb = isTransparentBg ? null : parseHexColor(background);
   const colored = new ImageData(canvasSubSize, canvasSubSize);
   for (let i = 0; i < binary.length; i++) {
     const j = i * 4;
-    if (binary[i] === 0) {
-      colored.data[j] = ink.r;
-      colored.data[j + 1] = ink.g;
-      colored.data[j + 2] = ink.b;
-      colored.data[j + 3] = 255;
-    } else if (bgRgb !== null) {
-      colored.data[j] = bgRgb.r;
-      colored.data[j + 1] = bgRgb.g;
-      colored.data[j + 2] = bgRgb.b;
-      colored.data[j + 3] = 255;
+    if (binary[i] !== 0) continue;
+    if (colorHalftone && !isOutsideSilhouette(rasterised.data, j)) {
+      const px = readPixel(lifted.data, j);
+      const { r, g, b } = clampLuminosity(px.r, px.g, px.b, MAX_INK_LUM);
+      colored.data[j] = r;
+      colored.data[j + 1] = g;
+      colored.data[j + 2] = b;
+    } else {
+      colored.data[j] = silhouetteInk.r;
+      colored.data[j + 1] = silhouetteInk.g;
+      colored.data[j + 2] = silhouetteInk.b;
     }
+    colored.data[j + 3] = 255;
   }
   const tmp = document.createElement('canvas');
   tmp.width = canvasSubSize;
@@ -174,30 +212,41 @@ function renderHalftone(
   const canvasSidePx = totalCells * cellPx;
   ctx.drawImage(tmp, 0, 0, canvasSidePx, canvasSidePx);
 
+  // For colour halftone, sample the source colour at each module centre — but
+  // only if the source actually covers that module. Reserved (finder/timing/
+  // alignment) cells always use the dominant ink so QR detection isn't softened
+  // into mid-grey.
+  const subSampleInkRgb = (mx: number, my: number): string => {
+    if (!colorHalftone) return silhouetteInkRgb;
+    const sx = (mx + marginCells) * 3 + 1;
+    const sy = (my + marginCells) * 3 + 1;
+    const j = (sy * canvasSubSize + sx) * 4;
+    if (isOutsideSilhouette(rasterised.data, j)) return STRUCTURAL_INK_RGB;
+    const px = readPixel(lifted.data, j);
+    const { r, g, b } = clampLuminosity(px.r, px.g, px.b, MAX_INK_LUM);
+    return `rgb(${r},${g},${b})`;
+  };
+
   eachCell(matrix, marginCells, cellPx, (cell) => {
     if (!cell.inMatrix) return;
     if (cell.isReserved) {
       if (cell.isModuleDark) {
-        ctx.fillStyle = inkRgb;
+        // Reserved (finder/timing/alignment/format/version) cells must be high
+        // contrast for scanability — never tint these with photo colour.
+        ctx.fillStyle = colorHalftone ? STRUCTURAL_INK_RGB : silhouetteInkRgb;
         ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
-      } else if (isTransparentBg) {
-        ctx.clearRect(cell.px, cell.py, cellPx, cellPx);
       } else {
-        ctx.fillStyle = background;
-        ctx.fillRect(cell.px, cell.py, cellPx, cellPx);
+        ctx.clearRect(cell.px, cell.py, cellPx, cellPx);
       }
       return;
     }
     const cx = cell.px + subPx;
     const cy = cell.py + subPx;
     if (cell.isModuleDark) {
-      ctx.fillStyle = inkRgb;
+      ctx.fillStyle = subSampleInkRgb(cell.mx, cell.my);
       ctx.fillRect(cx, cy, subPx, subPx);
-    } else if (isTransparentBg) {
-      ctx.clearRect(cx, cy, subPx, subPx);
     } else {
-      ctx.fillStyle = background;
-      ctx.fillRect(cx, cy, subPx, subPx);
+      ctx.clearRect(cx, cy, subPx, subPx);
     }
   });
 }
@@ -213,8 +262,16 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
   canvas.height = sizePx;
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, sizePx, sizePx);
 
-  fillBackground(ctx, sizePx, sizePx, opts.background);
-  renderHalftone(ctx, matrix, source, marginCells, cellPx, opts.background, opts.silhouetteScale ?? 1);
+  renderHalftone(
+    ctx,
+    matrix,
+    source,
+    marginCells,
+    cellPx,
+    opts.silhouetteScale ?? 1,
+    opts.colorHalftone ?? false,
+  );
   return canvas;
 }

@@ -14,17 +14,16 @@ export interface ControlsProps {
   onCaptionChange: (v: string) => void;
 
   multiSize: boolean;
-  background: string;
   silhouetteScale: number;
   onAdvancedChange: (
     patch: Partial<{
       multiSize: boolean;
-      background: string;
       silhouetteScale: number;
     }>,
   ) => void;
 
   onCustomUpload: (file: File) => void;
+  onDecodeQrUpload: (file: File) => void;
 }
 
 export function Controls(props: ControlsProps) {
@@ -34,7 +33,14 @@ export function Controls(props: ControlsProps) {
     e.target.value = '';
   };
 
+  const handleDecodeUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) props.onDecodeQrUpload(file);
+    e.target.value = '';
+  };
+
   const fileInputId = 'custom-source-upload';
+  const decodeInputId = 'decode-qr-upload';
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,6 +53,20 @@ export function Controls(props: ControlsProps) {
           placeholder="https://www.instagram.com/ntu_astro/"
           className="input-base w-full font-mono"
           spellCheck={false}
+        />
+        <button
+          type="button"
+          onClick={() => document.getElementById(decodeInputId)?.click()}
+          className="mt-2 text-xs font-medium text-olivegray underline-offset-2 hover:text-plumblack hover:underline"
+        >
+          Or upload an existing QR image to decode
+        </button>
+        <input
+          id={decodeInputId}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleDecodeUpload}
+          className="hidden"
         />
       </label>
 
@@ -61,7 +81,7 @@ export function Controls(props: ControlsProps) {
         <input
           id={fileInputId}
           type="file"
-          accept="image/png,image/svg+xml"
+          accept="image/png,image/svg+xml,image/jpeg,image/webp"
           onChange={handleUpload}
           className="hidden"
         />
@@ -86,7 +106,6 @@ export function Controls(props: ControlsProps) {
         <div className="mt-4">
           <AdvancedOptions
             multiSize={props.multiSize}
-            background={props.background}
             silhouetteScale={props.silhouetteScale}
             onChange={props.onAdvancedChange}
           />

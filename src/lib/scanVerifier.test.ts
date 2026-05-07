@@ -17,7 +17,6 @@ describe('verify', () => {
     const matrix = buildMatrix(text);
     const canvas = render(matrix, whiteImageData(256, 256), {
       marginPx: 32,
-      background: '#ffffff',
     });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
