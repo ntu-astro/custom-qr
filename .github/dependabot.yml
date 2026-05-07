@@ -1,0 +1,31 @@
+# Dependabot configuration for custom-qr.
+# Opens grouped weekly PRs for npm and GitHub Actions updates so we don't
+# lag behind on transitive vulns. Major upgrades open separately so they
+# can be evaluated on their own (especially for `qrcode`, which is exact-pinned
+# because of a private-API access — see CLAUDE.md "Locked decisions").
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Singapore"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Don't auto-bump qrcode — see CLAUDE.md.
+    ignore:
+      - dependency-name: "qrcode"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3

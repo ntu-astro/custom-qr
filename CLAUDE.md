@@ -10,7 +10,7 @@ A small client-only React app that turns a URL into a halftone-style QR code. Im
 
 - **React 19 + TypeScript + Vite 8** — single-page app
 - **Tailwind CSS v4** via `@tailwindcss/vite` (no `tailwind.config.ts`; tokens live in `src/index.css` as `@theme` variables)
-- **vitest + jsdom** for unit tests; **Playwright (chromium-only)** for E2E
+- **vitest + jsdom** for unit tests; **Playwright (chromium + webkit)** for E2E
 - **ESLint flat config** (`eslint.config.js`); CI runs both `typecheck` (tsc) and `lint` (eslint)
 - **`canvas` (node-canvas)** is a devDep that polyfills jsdom's 2D context for tests — see "Locked decisions" below
 
@@ -26,7 +26,7 @@ A small client-only React app that turns a URL into a halftone-style QR code. Im
 
 - **`canvas` (native node-canvas) cannot be removed** even though it's heavyweight. jsdom delegates every `getContext('2d')`, `putImageData`, `drawImage` call to it, AND its native binding does an `instanceof` check on its own ImageData type that rejects polyfill objects. Tried in commit history; reverted. If you want to drop it, you'd have to refactor every test+source path that touches a 2D context.
 - **Tailwind stays on v4 with the Vite plugin** (`@tailwindcss/vite`), no `tailwind.config.ts`, no `postcss.config.js`, no `autoprefixer`. Theme tokens live in `src/index.css` `@theme` block.
-- **`qrcode` private API.** `src/lib/qrMatrix.ts` reads `qr.modules.reservedBit` to identify structurally-reserved cells. There's a runtime assertion that throws a clear error if the field shape changes. Don't try to vendor `qrcode` — the runtime guard is enough.
+- **`qrcode` private API, exact-pinned at `1.5.4`.** `src/lib/qrMatrix.ts` reads `qr.modules.reservedBit` to identify structurally-reserved cells. There's a runtime assertion that throws a clear error if the field shape changes. The pin is exact (no caret) — never bump it without re-running the full test suite, including the pipeline integration test, against the new version. Don't try to vendor `qrcode` — the runtime guard is enough.
 - **Internal/proprietary license.** This is NOT an MIT/open-source project. Logo assets are © NTU Astronomical Society. See `LICENSE`.
 
 ## Repo layout
@@ -46,7 +46,7 @@ npm run dev           # vite dev :5173
 npm run typecheck     # tsc -b --noEmit
 npm run lint          # eslint . --max-warnings=0  (zero warnings tolerated)
 npm test              # vitest run (38 tests across 8 files)
-npm run test:e2e      # Playwright chromium (builds first, runs against vite preview :4173)
+npm run test:e2e      # Playwright chromium + webkit (builds first, runs against vite preview :4173)
 npm run test:e2e:ui   # Playwright UI mode
 npm run build         # → dist/
 npm run deploy        # wrangler deploy (Cloudflare Worker w/ static assets)

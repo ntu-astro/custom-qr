@@ -1,6 +1,8 @@
 /** Shared canvas / image-data helpers for the halftone renderer and the
  *  Stage-2 mask optimiser. Pure, no React, no QR knowledge. */
 
+import { toLuminance } from './colorUtils';
+
 /** Render the source illustration into a `targetSize × targetSize` transparent
  *  canvas, then return the resulting ImageData. Letterboxes a non-square source
  *  to preserve aspect ratio.
@@ -52,7 +54,7 @@ export function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
     const r = rgba.data[j] * a + 255 * (1 - a);
     const g = rgba.data[j + 1] * a + 255 * (1 - a);
     const b = rgba.data[j + 2] * a + 255 * (1 - a);
-    luma[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    luma[i] = toLuminance(r, g, b);
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -85,6 +87,12 @@ export async function loadImageData(src: string): Promise<ImageData> {
     img.src = src;
   });
   const canvas = document.createElement('canvas');
+  /** Square side (px) we rasterise every source illustration to before passing
+   *  it through the halftone pipeline. 1024² balances detail (sub-pixel
+   *  importance maps stay smooth) against memory and dither cost. Note this
+   *  is distinct from `MAX_DECODE_SIDE` in `decodeQrImage.ts`, which caps the
+   *  jsqr decode-input size — they happen to share a value but solve different
+   *  problems and should not be merged. */
   const targetSide = 1024;
   canvas.width = targetSide;
   canvas.height = targetSide;

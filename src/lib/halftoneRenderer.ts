@@ -1,5 +1,6 @@
 import type { QRMatrix, RenderOptions } from '../types';
 import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
+import { toLuminance } from './colorUtils';
 
 // 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
 // Implements Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia): paint a Floyd–Steinberg
@@ -9,10 +10,14 @@ import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
 // ring near-white so jsqr-style decoders can still lock onto the finder patterns.
 const CELL_PX = 18;
 
+/** Luma (0..255) above which a source pixel is considered too bright to
+ *  contribute to the dominant ink-colour average. Empirically tuned. */
+const DARK_PIXEL_LUMA_CUTOFF = 200;
+
 interface InkColor { r: number; g: number; b: number }
 
 function clampLuminosity(r: number, g: number, b: number, maxBrightness = 0.45) {
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const lum = toLuminance(r, g, b) / 255;
   if (lum <= maxBrightness) return { r, g, b };
   const k = maxBrightness / Math.max(lum, 1e-6);
   return {
@@ -33,8 +38,8 @@ function pickInkColor(source: ImageData): InkColor {
     const r = source.data[i];
     const g = source.data[i + 1];
     const b = source.data[i + 2];
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (lum < 200) {
+    const lum = toLuminance(r, g, b);
+    if (lum < DARK_PIXEL_LUMA_CUTOFF) {
       sumR += r; sumG += g; sumB += b; count++;
     }
   }
@@ -151,6 +156,7 @@ const SILHOUETTE_MAX_LUM = 0.85;
  *  dominant photo tint there would tint the corner squares (e.g. bronze for a
  *  rainbow photo) and hurt finder-pattern detection. */
 const STRUCTURAL_INK: InkColor = { r: 33, g: 25, b: 34 };
+export const STRUCTURAL_INK_HEX = '#211922';
 const STRUCTURAL_INK_RGB = `rgb(${STRUCTURAL_INK.r},${STRUCTURAL_INK.g},${STRUCTURAL_INK.b})`;
 
 function isOutsideSilhouette(data: Uint8ClampedArray, idx4: number): boolean {
@@ -159,7 +165,7 @@ function isOutsideSilhouette(data: Uint8ClampedArray, idx4: number): boolean {
   const r = data[idx4] * a + 255 * (1 - a);
   const g = data[idx4 + 1] * a + 255 * (1 - a);
   const b = data[idx4 + 2] * a + 255 * (1 - a);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const lum = toLuminance(r, g, b) / 255;
   return lum > SILHOUETTE_MAX_LUM;
 }
 

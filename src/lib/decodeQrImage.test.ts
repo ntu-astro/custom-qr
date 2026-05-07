@@ -115,4 +115,34 @@ describe('decodeQrImage', () => {
     const file = await makeBlankPngFile();
     await expect(decodeQrImage(file)).rejects.toThrow(/No QR code/);
   });
+
+  it('throws "Could not read image file" when the underlying Image fails to load', async () => {
+    // Temporarily swap the canvas-package Image (installed in beforeAll) with a
+    // failing stub that fires onerror as soon as src is set. We restore the
+    // canvas Image afterwards so the rest of the suite keeps working.
+    const installedImage = (globalThis as unknown as { Image: unknown }).Image;
+    class FailingImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      crossOrigin: string | null = null;
+      width = 0;
+      height = 0;
+      private _src = '';
+      get src(): string {
+        return this._src;
+      }
+      set src(value: string) {
+        this._src = value;
+        setTimeout(() => this.onerror?.(), 0);
+      }
+    }
+    (globalThis as unknown as { Image: typeof FailingImage }).Image = FailingImage;
+    try {
+      // Reuse the blank PNG path so URL.createObjectURL has a registered blob.
+      const file = await makeBlankPngFile();
+      await expect(decodeQrImage(file)).rejects.toThrow(/Could not read image file/);
+    } finally {
+      (globalThis as unknown as { Image: unknown }).Image = installedImage;
+    }
+  });
 });

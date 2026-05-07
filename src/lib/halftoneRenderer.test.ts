@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from './halftoneRenderer';
 import { buildMatrix } from './qrMatrix';
+import { toLuminance } from './colorUtils';
 
 function blackImageData(w: number, h: number): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -202,7 +203,7 @@ describe('render — color halftone', () => {
     expect(px[3]).toBe(255);
     expect(px[0]).toBeGreaterThan(px[1]);
     expect(px[0]).toBeGreaterThan(px[2]);
-    const lum = (0.299 * px[0] + 0.587 * px[1] + 0.114 * px[2]) / 255;
+    const lum = toLuminance(px[0], px[1], px[2]) / 255;
     expect(lum).toBeLessThanOrEqual(0.46);
   });
 

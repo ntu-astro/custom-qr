@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  rasterizeSource,
+  ditherFloydSteinberg,
+  loadImageData,
+  readFileAsDataUrl,
+} from './imageOps';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -137,6 +142,80 @@ describe('ditherFloydSteinberg', () => {
     // Last column (x=w-1): all rows should be 0.
     for (let y = 0; y < h; y++) {
       expect(result[y * w + (w - 1)]).toBe(0);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadImageData (error path)
+// ---------------------------------------------------------------------------
+
+describe('loadImageData', () => {
+  it('rejects with a descriptive error when the image fails to load', async () => {
+    // Stub global.Image so the constructed instance fires onerror asynchronously
+    // when src is assigned. This mirrors the browser behaviour for a 404 / bad
+    // URL without actually performing a network request in jsdom.
+    const originalImage = globalThis.Image;
+    class FailingImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      crossOrigin: string | null = null;
+      width = 0;
+      height = 0;
+      private _src = '';
+      get src(): string {
+        return this._src;
+      }
+      set src(value: string) {
+        this._src = value;
+        // Fire onerror on the next tick so the awaiting Promise observes it.
+        setTimeout(() => this.onerror?.(), 0);
+      }
+    }
+    (globalThis as unknown as { Image: typeof FailingImage }).Image = FailingImage;
+    try {
+      await expect(loadImageData('bad-url')).rejects.toThrow(/Failed to load image/);
+    } finally {
+      (globalThis as unknown as { Image: typeof originalImage }).Image = originalImage;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readFileAsDataUrl
+// ---------------------------------------------------------------------------
+
+describe('readFileAsDataUrl', () => {
+  it('resolves with a data: URL on success', async () => {
+    const file = new File(['hello world'], 'greeting.txt', { type: 'text/plain' });
+    const dataUrl = await readFileAsDataUrl(file);
+    // Loose-but-meaningful: must be a data: URL, must include the MIME type
+    // we passed to File, and must be base64-encoded.
+    expect(dataUrl.startsWith('data:text/plain')).toBe(true);
+    expect(dataUrl).toMatch(/;base64,/);
+  });
+
+  it('rejects when FileReader fires onerror', async () => {
+    // Spy on readAsDataURL so the underlying read is replaced with an immediate
+    // error event. We touch the FileReader prototype rather than constructing
+    // a fake to keep the resolution path inside readFileAsDataUrl identical.
+    const spy = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(
+      function (this: FileReader) {
+        // Pretend the underlying read errored.
+        Object.defineProperty(this, 'error', {
+          configurable: true,
+          value: new DOMException('boom', 'NotReadableError'),
+        });
+        setTimeout(() => {
+          this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>);
+        }, 0);
+      },
+    );
+    try {
+      const file = new File(['ignored'], 'broken.txt', { type: 'text/plain' });
+      await expect(readFileAsDataUrl(file)).rejects.toThrow();
+    } finally {
+      spy.mockRestore();
     }
   });
 });

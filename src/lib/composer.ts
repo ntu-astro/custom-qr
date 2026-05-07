@@ -1,5 +1,6 @@
 import type { Palette, PosterSize } from '../types';
 import { FONT_STACK_CANVAS } from '../types';
+import { STRUCTURAL_INK_HEX } from './halftoneRenderer';
 
 const SAFE_ZONE_FRACTION = 0.75;
 const QR_BAND_FRACTION = 0.75;
@@ -104,7 +105,7 @@ export function composePoster(
     const trimmed = caption.trim();
     const maxFontSize = captionBandHeight * 0.55;
     const fontSize = fitFontSize(ctx, trimmed, safe * 0.95, maxFontSize, maxFontSize);
-    ctx.fillStyle = '#211922';
+    ctx.fillStyle = STRUCTURAL_INK_HEX;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `600 ${fontSize}px ${out.dataset.fontFamily}`;
