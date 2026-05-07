@@ -2,6 +2,8 @@
 
 A small, polished web app that turns any URL into a halftone-style QR code with an astronomy-themed silhouette. Built for [NTU Astronomical Society](https://www.instagram.com/ntu_astro/).
 
+**Live:** [custom-qr.ntuas.com](https://custom-qr.ntuas.com)
+
 ## Features
 - 6 built-in templates (Earth, Orion, Scorpius, Crux (Southern Cross), Sagittarius Teapot, NTUAS)
 - Upload your own PNG/SVG silhouette (≤ 10MB)
@@ -42,6 +44,14 @@ npx wrangler login        # one-time
 npm run build
 npm run deploy            # wrangler deploy
 ```
+
+### Domains & routes
+
+| Type | URL |
+|---|---|
+| Custom domain (primary) | [custom-qr.ntuas.com](https://custom-qr.ntuas.com) |
+| `workers.dev` | [custom-qr.ntuas.workers.dev](https://custom-qr.ntuas.workers.dev) |
+| Preview URLs | `*-custom-qr.ntuas.workers.dev` (per Workers Build) |
 
 ## Project layout
 
