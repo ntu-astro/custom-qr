@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
-import type { Palette, FilterMode } from './types';
+import type { Palette } from './types';
 import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
@@ -39,11 +39,8 @@ export default function App() {
     caption,
     posterSize,
     renderMode,
+    filter,
   } = state;
-
-  // Custom uploads are assumed to be colour photos; built-in templates are
-  // pure-black silhouettes where the colour filter has no effect.
-  const filter: FilterMode = templateId === 'custom' ? 'color' : 'mono';
 
   const { qrCanvas, scanResults, isRendering, pipelineError } = useQrPipeline({
     url,
@@ -157,6 +154,7 @@ export default function App() {
           multiSize={state.multiSize}
           silhouetteScale={state.silhouetteScale}
           renderMode={state.renderMode}
+          filter={state.filter}
           onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}
           onCustomUpload={handleCustomUpload}
           onDecodeQrUpload={handleDecodeQrUpload}

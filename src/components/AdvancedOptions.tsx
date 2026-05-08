@@ -1,14 +1,15 @@
 import type { AdvancedSettings } from '../appReducer';
-import type { RenderMode } from '../types';
+import type { FilterMode, RenderMode } from '../types';
 
 interface Props {
   multiSize: boolean;
   silhouetteScale: number;
   renderMode: RenderMode;
+  filter: FilterMode;
   onChange: (patch: Partial<AdvancedSettings>) => void;
 }
 
-export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, onChange }: Props) {
+export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, filter, onChange }: Props) {
   const scalePct = Math.round(silhouetteScale * 100);
   return (
     <div className="flex flex-col gap-4">
@@ -56,6 +57,37 @@ export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, onChan
         </label>
         <p className="text-xs text-olivegray">
           Composite paints a clean QR centre with the image as surround; Halftone diffuses the image across all modules.
+        </p>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm text-olivegray">Color mode</legend>
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            name="filter"
+            value="color"
+            checked={filter === 'color'}
+            onChange={() => onChange({ filter: 'color' })}
+          />
+          <span className={filter === 'color' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
+            Color
+          </span>
+        </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            name="filter"
+            value="mono"
+            checked={filter === 'mono'}
+            onChange={() => onChange({ filter: 'mono' })}
+          />
+          <span className={filter === 'mono' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
+            Mono
+          </span>
+        </label>
+        <p className="text-xs text-olivegray">
+          Color samples ink per-pixel from the source; Mono collapses the image to a single dominant tone (better for high-contrast silhouettes).
         </p>
       </fieldset>
 

@@ -1,5 +1,15 @@
-import type { PosterSize, RenderMode } from './types';
-import { DEFAULT_TEMPLATE_ID } from './templates/presets';
+import type { FilterMode, PosterSize, RenderMode } from './types';
+import { DEFAULT_TEMPLATE_ID, findTemplate } from './templates/presets';
+
+/** Picks the per-template default filter mode. Astronomy presets are pure-black
+ *  silhouettes that look best collapsed to a single tone (`'mono'`); art and
+ *  custom uploads are full-colour images that lose all character if mono-ed,
+ *  so they default to `'color'`. The user can override via the toggle in
+ *  Advanced options; this default is only applied on template selection. */
+function defaultFilterFor(templateId: string): FilterMode {
+  if (templateId === 'custom') return 'color';
+  return findTemplate(templateId).category === 'astronomy' ? 'mono' : 'color';
+}
 
 export interface CustomSource {
   /** SHA-256 content hash of the uploaded data URL. The actual data URL
@@ -20,6 +30,9 @@ export interface AdvancedSettings {
   silhouetteScale: number;
   /** 'composite' (default, qart.js-style) | 'halftone' (Chu et al. 2013). */
   renderMode: RenderMode;
+  /** 'color' (default) samples ink per-pixel from the source image; 'mono'
+   *  collapses the silhouette to its dominant tone. */
+  filter: FilterMode;
 }
 
 export interface AppState extends AdvancedSettings {
@@ -48,6 +61,7 @@ const DEFAULT_STATE: AppState = {
   multiSize: false,
   silhouetteScale: 1,
   renderMode: 'composite',
+  filter: defaultFilterFor(DEFAULT_TEMPLATE_ID),
 };
 
 /** Versioned localStorage key. Bump the suffix to invalidate persisted state. */
@@ -93,11 +107,22 @@ export function reducer(state: AppState, action: AppAction): AppState {
         ...state,
         templateId: action.id,
         customSource: action.id === 'custom' ? state.customSource : null,
+        filter: defaultFilterFor(action.id),
       };
     case 'SET_CUSTOM_SOURCE':
-      return { ...state, templateId: 'custom', customSource: action.source };
+      return {
+        ...state,
+        templateId: 'custom',
+        customSource: action.source,
+        filter: 'color',
+      };
     case 'CLEAR_CUSTOM_SOURCE':
-      return { ...state, templateId: DEFAULT_TEMPLATE_ID, customSource: null };
+      return {
+        ...state,
+        templateId: DEFAULT_TEMPLATE_ID,
+        customSource: null,
+        filter: defaultFilterFor(DEFAULT_TEMPLATE_ID),
+      };
     case 'SET_CAPTION':
       return { ...state, caption: action.value };
     case 'SET_POSTER_SIZE':

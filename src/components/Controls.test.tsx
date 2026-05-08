@@ -39,6 +39,7 @@ function renderControls(
       multiSize={overrides.multiSize ?? false}
       silhouetteScale={overrides.silhouetteScale ?? 1}
       renderMode="halftone"
+      filter="color"
       onAdvancedChange={callbacks.onAdvancedChange ?? vi.fn()}
       onCustomUpload={callbacks.onCustomUpload ?? vi.fn()}
       onDecodeQrUpload={callbacks.onDecodeQrUpload ?? vi.fn()}

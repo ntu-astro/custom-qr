@@ -105,8 +105,8 @@ describe('TemplatePicker — Astronomy tab', () => {
   });
 });
 
-describe('TemplatePicker — Art tab (empty state)', () => {
-  it('shows a "coming soon" message and no template tiles', () => {
+describe('TemplatePicker — Art tab', () => {
+  it('renders a tile for every art-category preset', () => {
     render(
       <TemplatePicker
         selectedId="ntuas"
@@ -116,11 +116,29 @@ describe('TemplatePicker — Art tab (empty state)', () => {
     );
     fireEvent.click(screen.getByRole('tab', { name: 'Art' }));
     const panel = screen.getByRole('tabpanel', { name: 'Art templates' });
-    expect(panel).toHaveTextContent(/coming soon/i);
-    // No preset tiles rendered inside the Art tab.
-    for (const preset of TEMPLATES) {
-      expect(screen.queryByRole('button', { name: preset.displayName })).toBeNull();
+    expect(panel).toBeInTheDocument();
+
+    const artPresets = TEMPLATES.filter((t) => t.category === 'art');
+    expect(artPresets.length).toBeGreaterThan(0);
+    for (const preset of artPresets) {
+      expect(screen.getByRole('button', { name: preset.displayName })).toBeInTheDocument();
     }
+  });
+
+  it('selects an art preset when its tile is clicked', () => {
+    const onSelect = vi.fn();
+    const firstArt = TEMPLATES.find((t) => t.category === 'art');
+    expect(firstArt).toBeDefined();
+    render(
+      <TemplatePicker
+        selectedId="ntuas"
+        onSelect={onSelect}
+        onUploadClick={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Art' }));
+    fireEvent.click(screen.getByRole('button', { name: firstArt!.displayName }));
+    expect(onSelect).toHaveBeenCalledWith(firstArt!.id);
   });
 });
 
