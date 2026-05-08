@@ -39,7 +39,7 @@ describe('halftone pipeline integration', () => {
     const canvas = renderHalftone(flipped, source, {
       marginPx: 0,
       silhouetteScale: 1,
-      colorHalftone: false,
+      filter: 'mono',
     });
 
     // Sanity: the inter-stage glue produced a real, sized canvas.
@@ -70,7 +70,7 @@ describe('halftone pipeline integration', () => {
     const canvas = renderHalftone(flipped, source, {
       marginPx: 0,
       silhouetteScale: 0.8,
-      colorHalftone: true,
+      filter: 'color',
     });
 
     // Canvas exists with the expected dimensions — the strict scannability of

@@ -76,6 +76,7 @@ const baseInput: QrPipelineInput = {
   customSource: null,
   silhouetteScale: 1,
   multiSize: false,
+  filter: 'mono',
 };
 
 beforeEach(() => {

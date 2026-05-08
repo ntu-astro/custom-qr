@@ -181,7 +181,7 @@ describe('render — color halftone', () => {
     // contrast.
     const canvas = render(matrix, colorImageData(256, 256, 220, 40, 40), {
       marginPx: 0,
-      colorHalftone: true,
+      filter: 'color',
     });
     const ctx = canvas.getContext('2d')!;
     const cellPx = canvas.width / matrix.size;
@@ -211,7 +211,7 @@ describe('render — color halftone', () => {
     const { verify } = await import('./scanVerifier');
     const canvas = render(matrix, colorImageData(256, 256, 220, 40, 40), {
       marginPx: 32,
-      colorHalftone: true,
+      filter: 'color',
     });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
