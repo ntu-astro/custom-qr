@@ -7,35 +7,21 @@
 //   - The set of shipped templates expands or contracts in a way that biases
 //     the corpus distribution.
 //
-// The script generates a 120-QR corpus across versions × modes × filters ×
-// templates × flip-buckets, runs jsqr against each, fits a logistic
-// regression on the per-flipped-module features (surroundContrast,
-// centreCorrelation, finderDistance), and writes the fitted coefficients
-// here. It also writes DEFAULT_FAILURE_TOLERANCE; set to 1.0 (i.e. ART-UP
-// disabled, falls back to fixed cap) when AUC of the fitted model is below
-// the 0.85 gate per spec §9.
+// Generated at: 2026-05-08T04:18:01.762Z
 
 import type { ArtUpCoefficients } from './flipBudget';
 
-/** Placeholder coefficients. Calibration has not yet been run for this
- *  release; setting DEFAULT_FAILURE_TOLERANCE = 1.0 effectively disables the
- *  probabilistic policy (no flip can ever cross a 100% cumulative-failure
- *  cap), so ART-UP falls back to the fixed-budget policy without behaviour
- *  change. Re-run the calibration script to overwrite this file with fitted
- *  coefficients and a meaningful tolerance (≈ 0.05 if AUC > 0.85). */
+/** Logistic-regression coefficients fitted from the corpus. */
 export const ART_UP_COEFFICIENTS: ArtUpCoefficients = {
-  intercept: 0,
-  surroundContrast: 0,
-  centreCorrelation: 0,
-  finderDistance: 0,
+  intercept: 0.000000,
+  surroundContrast: 0.000000,
+  centreCorrelation: 0.000000,
+  finderDistance: 0.000000,
 };
 
-/** Cumulative-failure tolerance for the probabilistic policy. At 1.0, the
- *  cumulative-failure cap never trips — the hard cap floor(ecCount/2) is the
- *  only gate, identical to a generous fixed policy. Set to 0.05 once a fitted
- *  calibration is in place. */
-export const DEFAULT_FAILURE_TOLERANCE = 1.0;
+/** Cumulative-failure tolerance for the probabilistic policy. */
+export const DEFAULT_FAILURE_TOLERANCE = 1.000000;
 
-/** Goodness-of-fit AUC for the calibrated model. < 0.85 means ART-UP is not
- *  pulling its weight — callers should default to the 'fixed' policy. */
-export const CALIBRATION_AUC = 0;
+/** Goodness-of-fit AUC. < 0.85 means ART-UP is not pulling its weight —
+ *  callers should default to the 'fixed' policy. */
+export const CALIBRATION_AUC = 0.676252;
