@@ -10,6 +10,7 @@ interface RenderOpts {
   multiSize?: boolean;
   silhouetteScale?: number;
   customSourceLabel?: string;
+  customCropToSquare?: boolean;
 }
 
 function renderControls(
@@ -21,6 +22,7 @@ function renderControls(
     onAdvancedChange?: () => void;
     onCustomUpload?: (f: File) => void;
     onDecodeQrUpload?: (f: File) => void;
+    onCustomCropToSquareChange?: (v: boolean) => void;
   } = {},
 ) {
   return render(
@@ -30,6 +32,8 @@ function renderControls(
       templateId={overrides.templateId ?? 'ntuas'}
       onTemplateSelect={callbacks.onTemplateSelect ?? vi.fn()}
       customSourceLabel={overrides.customSourceLabel}
+      customCropToSquare={overrides.customCropToSquare}
+      onCustomCropToSquareChange={callbacks.onCustomCropToSquareChange}
       caption={overrides.caption ?? ''}
       onCaptionChange={callbacks.onCaptionChange ?? vi.fn()}
       multiSize={overrides.multiSize ?? false}
@@ -104,5 +108,22 @@ describe('Controls', () => {
     // regardless of <details open> state, so we can query directly.
     const slider = screen.getByRole('slider');
     expect(slider).toHaveAttribute('type', 'range');
+  });
+
+  describe('Custom crop toggle wiring (toggle UI itself is exercised in TemplatePicker tests)', () => {
+    it('threads customCropToSquare and onCustomCropToSquareChange through to the Custom tab', () => {
+      // When templateId === 'custom' and a source label is present, the
+      // TemplatePicker auto-selects the Custom tab and renders the toggle
+      // with the props Controls passed through.
+      const onCustomCropToSquareChange = vi.fn();
+      renderControls(
+        { templateId: 'custom', customSourceLabel: 'logo.png', customCropToSquare: true },
+        { onCustomCropToSquareChange },
+      );
+      const square = screen.getByRole('radio', { name: 'Square' });
+      expect(square).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(screen.getByRole('radio', { name: 'Original' }));
+      expect(onCustomCropToSquareChange).toHaveBeenCalledWith(false);
+    });
   });
 });

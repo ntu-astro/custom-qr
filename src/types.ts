@@ -9,12 +9,17 @@ export interface Palette {
   accent: string;
 }
 
+/** Top-level grouping shown as tabs in the TemplatePicker. `'custom'` is not
+ *  a preset category — it's a tab that contains the upload UI. */
+export type TemplateCategory = 'astronomy' | 'art';
+
 export interface TemplatePreset {
   id: string;
   displayName: string;
   /** Resolved at runtime via `new URL(sourcePath, import.meta.url)`-style fetch. */
   sourcePath: string;
   palette: Palette;
+  category: TemplateCategory;
 }
 
 export interface QRMatrix {

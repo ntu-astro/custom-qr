@@ -34,18 +34,6 @@ export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, onChan
           <input
             type="radio"
             name="renderMode"
-            value="halftone"
-            checked={renderMode === 'halftone'}
-            onChange={() => onChange({ renderMode: 'halftone' })}
-          />
-          <span className={renderMode === 'halftone' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
-            Halftone
-          </span>
-        </label>
-        <label className="flex items-center gap-3">
-          <input
-            type="radio"
-            name="renderMode"
             value="composite"
             checked={renderMode === 'composite'}
             onChange={() => onChange({ renderMode: 'composite' })}
@@ -54,8 +42,20 @@ export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, onChan
             Composite
           </span>
         </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            name="renderMode"
+            value="halftone"
+            checked={renderMode === 'halftone'}
+            onChange={() => onChange({ renderMode: 'halftone' })}
+          />
+          <span className={renderMode === 'halftone' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
+            Halftone
+          </span>
+        </label>
         <p className="text-xs text-olivegray">
-          Halftone diffuses the image across all modules; Composite paints a clean QR centre with the image as surround.
+          Composite paints a clean QR centre with the image as surround; Halftone diffuses the image across all modules.
         </p>
       </fieldset>
 
