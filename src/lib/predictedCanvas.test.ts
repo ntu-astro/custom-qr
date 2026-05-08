@@ -13,6 +13,12 @@ function opaqueGreyImageData(w: number, h: number, value = 128): ImageData {
   return new ImageData(data, w, h);
 }
 
+function transparentPngLikeImageData(w: number, h: number): ImageData {
+  // Fully transparent canvas — mimics a PNG/SVG whose surround is alpha=0
+  // before rasterisation places any opaque content.
+  return new ImageData(new Uint8ClampedArray(w * h * 4), w, h);
+}
+
 describe('buildPredictedCanvas', () => {
   const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
   const source = opaqueGreyImageData(64, 64);
@@ -54,13 +60,41 @@ describe('buildPredictedCanvas', () => {
     }
   });
 
-  it('composite + color: passes the lifted raster through unchanged', () => {
+  it('composite + color: opaque source preserved (white-blend is identity)', () => {
     const canvas = buildPredictedCanvas(source, matrix, 0, 1, 'composite', 'color');
-    // Pass-through means the canvas data is the lifted raster — same dims and
-    // (with marginCells=0) the data should be identical to a separately-built
-    // raster.
     expect(canvas.data.width).toBe(canvas.raster.width);
     expect(canvas.data.height).toBe(canvas.raster.height);
+    // Opaque grey input: blendAgainstWhite is identity. Channels stay at 128,
+    // alpha is forced to 255. dataIsGreyscale stays false because the path
+    // preserves RGB (sampling-sim still routes through toLuminance).
+    expect(canvas.dataIsGreyscale).toBe(false);
+    for (let i = 0; i < canvas.data.data.length; i += 4) {
+      expect(canvas.data.data[i]).toBe(128);
+      expect(canvas.data.data[i + 1]).toBe(128);
+      expect(canvas.data.data[i + 2]).toBe(128);
+      expect(canvas.data.data[i + 3]).toBe(255);
+    }
+  });
+
+  it('composite + color: transparent input blends to opaque white (no leaked alpha=0 / black RGB)', () => {
+    // Regression test for the "transparent PNG → black background" bug. Before
+    // the fix, composite+color stored the un-blended raster in `data` and the
+    // renderer's alpha-only fallback stamped structural ink across every
+    // transparent surround subpixel, producing a near-black canvas. Now the
+    // predicted canvas blends transparency onto white at build time, so the
+    // renderer paints a clean white surround everywhere the source was alpha=0.
+    const transparent = transparentPngLikeImageData(64, 64);
+    const canvas = buildPredictedCanvas(transparent, matrix, 0, 1, 'composite', 'color');
+    expect(canvas.dataIsGreyscale).toBe(false);
+    for (let i = 0; i < canvas.data.data.length; i += 4) {
+      expect(canvas.data.data[i]).toBe(255);
+      expect(canvas.data.data[i + 1]).toBe(255);
+      expect(canvas.data.data[i + 2]).toBe(255);
+      expect(canvas.data.data[i + 3]).toBe(255);
+    }
+    // raster is retained un-blended (still alpha=0), preserving the source-of-
+    // truth alpha for any downstream consumer that needs it.
+    expect(canvas.raster.data[3]).toBe(0);
   });
 
   it('reservedChecksum is deterministic for the same matrix', () => {
