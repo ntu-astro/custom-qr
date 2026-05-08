@@ -17,6 +17,7 @@
     "test:e2e:ui": "playwright test --ui",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint . --max-warnings=0",
+    "calibrate:flip-budget": "tsx scripts/calibrate-flip-budget.ts",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
