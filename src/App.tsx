@@ -7,7 +7,7 @@ import { composePoster } from './lib/composer';
 import { decodeQrImage } from './lib/decodeQrImage';
 import { reducer, getInitialState, PERSIST_KEY } from './appReducer';
 import { readFileAsDataUrl } from './lib/imageOps';
-import { cacheImageDataUrl } from './lib/imageCache';
+import { cacheImageDataUrl, getCachedImageDataUrl } from './lib/imageCache';
 import { useQrPipeline } from './hooks/useQrPipeline';
 
 const CUSTOM_PALETTE: Palette = { accent: '#435ee5' };
@@ -130,7 +130,7 @@ export default function App() {
       <header className="mb-8 flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-heading">Astro QR</h1>
         <p className="text-sm text-olivegray">
-          Halftone-style QR codes for NTU Astronomical Society. No backend, no tracking.
+          Custom QR codes for NTU Astronomical Society. No backend, no tracking.
         </p>
       </header>
 
@@ -141,6 +141,17 @@ export default function App() {
           templateId={state.templateId}
           onTemplateSelect={(id) => dispatch({ type: 'SELECT_TEMPLATE', id })}
           customSourceLabel={state.customSource?.filename}
+          customSourceDataUrl={
+            state.customSource ? getCachedImageDataUrl(state.customSource.imageHash) ?? undefined : undefined
+          }
+          customCropToSquare={state.customSource?.cropToSquare === true}
+          onCustomCropToSquareChange={(value) => {
+            if (!state.customSource) return;
+            dispatch({
+              type: 'SET_CUSTOM_SOURCE',
+              source: { ...state.customSource, cropToSquare: value },
+            });
+          }}
           caption={state.caption}
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
           multiSize={state.multiSize}
