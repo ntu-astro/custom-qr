@@ -1,7 +1,141 @@
-/** Shared canvas / image-data helpers for the halftone renderer and the
- *  Stage-2 mask optimiser. Pure, no React, no QR knowledge. */
+/** Shared canvas / image-data helpers for the halftone renderer, the composite
+ *  renderer, the predicted-canvas builder, and the Stage-2 mask optimiser.
+ *  Pure, no React, no QR knowledge. */
 
 import { toLuminance } from './colorUtils';
+
+// ---------------------------------------------------------------------------
+// Image-conditioning constants (shared between halftone + composite renderers)
+// ---------------------------------------------------------------------------
+
+/** Maximum normalised luminance (0..1) any silhouette ink sub-pixel may carry.
+ *  jsqr only locks on if dark modules read clearly darker than light modules,
+ *  so per-pixel colour samples are clamped down to this ceiling. */
+export const MAX_INK_LUM = 0.45;
+
+/** A source sub-pixel is treated as "outside the silhouette" when its alpha
+ *  is below this fraction. Used to decide when to fall back to structural ink
+ *  (PNG/SVG cases). */
+export const SILHOUETTE_ALPHA_THRESHOLD = 0.4;
+
+/** A source sub-pixel is treated as "outside the silhouette" when its
+ *  white-blended luminance exceeds this fraction. Used to detect near-white
+ *  backgrounds in JPEG/photo sources without alpha. */
+export const SILHOUETTE_MAX_LUM = 0.85;
+
+/** Plum-black used for finders, timing, alignment, and any QR data stamps that
+ *  fall outside the silhouette while colour halftone is on. */
+export const STRUCTURAL_INK = { r: 33, g: 25, b: 34 } as const;
+
+/** Hex form of `STRUCTURAL_INK`, used by the poster compositor's halo accent. */
+export const STRUCTURAL_INK_HEX = '#211922';
+
+/** `rgb(...)` form of `STRUCTURAL_INK`, used by the renderers' fillStyle. */
+export const STRUCTURAL_INK_RGB = `rgb(${STRUCTURAL_INK.r},${STRUCTURAL_INK.g},${STRUCTURAL_INK.b})`;
+
+/** Luma (0..255) above which a source pixel is considered too bright to
+ *  contribute to the dominant ink-colour average. Empirically tuned. */
+export const DARK_PIXEL_LUMA_CUTOFF = 200;
+
+/** Maximum fraction of original darkness retained at the inner edge of the
+ *  margin (immediately adjacent to the QR data area). The factor falls off
+ *  linearly to 0 at the canvas edge — so the outermost ring is essentially
+ *  white, which protects finder-pattern detection in lenient decoders, while
+ *  still allowing the silhouette to echo softly outward from the QR. */
+const MARGIN_INNER_INK_FACTOR = 0.25;
+
+// ---------------------------------------------------------------------------
+// Image-conditioning helpers
+// ---------------------------------------------------------------------------
+
+/** Alpha-blend a source ImageData against an opaque white background, returning
+ *  a new ImageData whose every pixel is fully opaque. Required pre-step for
+ *  `ditherFloydSteinberg` and any luma-based downstream consumer. */
+export function blendAgainstWhite(rgba: ImageData): ImageData {
+  const out = new ImageData(rgba.width, rgba.height);
+  for (let i = 0; i < rgba.data.length; i += 4) {
+    const a = rgba.data[i + 3] / 255;
+    out.data[i] = Math.round(rgba.data[i] * a + 255 * (1 - a));
+    out.data[i + 1] = Math.round(rgba.data[i + 1] * a + 255 * (1 - a));
+    out.data[i + 2] = Math.round(rgba.data[i + 2] * a + 255 * (1 - a));
+    out.data[i + 3] = 255;
+  }
+  return out;
+}
+
+/** Return a copy of `rasterised` with margin sub-pixels graduated toward white.
+ *  Sub-pixels at the matrix boundary keep MARGIN_INNER_INK_FACTOR of their ink;
+ *  density tapers linearly to 0 at the canvas edge. Channels are alpha-blended
+ *  against white first so transparent sources behave the same as white sources. */
+export function liftMarginBrightness(
+  rasterised: ImageData,
+  marginCells: number,
+  matrixCells: number,
+): ImageData {
+  const out = new ImageData(rasterised.width, rasterised.height);
+  out.data.set(rasterised.data);
+  if (marginCells <= 0) return out;
+  const marginSub = marginCells * 3;
+  const matrixSubStart = marginSub;
+  const matrixSubEnd = matrixSubStart + matrixCells * 3;
+  const w = out.width;
+  const h = out.height;
+  for (let y = 0; y < h; y++) {
+    const dy = y < matrixSubStart ? matrixSubStart - 1 - y
+             : y >= matrixSubEnd ? y - matrixSubEnd
+             : -1;
+    for (let x = 0; x < w; x++) {
+      const dx = x < matrixSubStart ? matrixSubStart - 1 - x
+               : x >= matrixSubEnd ? x - matrixSubEnd
+               : -1;
+      if (dx < 0 && dy < 0) continue;
+      const d = Math.max(dx, dy);
+      const factor = MARGIN_INNER_INK_FACTOR * (1 - d / marginSub);
+      const j = (y * w + x) * 4;
+      const a = out.data[j + 3] / 255;
+      for (let c = 0; c < 3; c++) {
+        const blended = out.data[j + c] * a + 255 * (1 - a);
+        out.data[j + c] = Math.round(255 - (255 - blended) * factor);
+      }
+      out.data[j + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/** A source sub-pixel is treated as "outside the silhouette" when it is either
+ *  largely transparent (PNG/SVG) or near-white (JPEG/photo with white
+ *  background). In both cases colour halftoning falls back to the structural
+ *  ink so the QR's dark-module stamps stay pure dark instead of fading toward
+ *  whatever neutral the photo's background happens to be. */
+export function isOutsideSilhouette(data: Uint8ClampedArray, idx4: number): boolean {
+  const a = data[idx4 + 3] / 255;
+  if (a < SILHOUETTE_ALPHA_THRESHOLD) return true;
+  const r = data[idx4] * a + 255 * (1 - a);
+  const g = data[idx4 + 1] * a + 255 * (1 - a);
+  const b = data[idx4 + 2] * a + 255 * (1 - a);
+  const lum = toLuminance(r, g, b) / 255;
+  return lum > SILHOUETTE_MAX_LUM;
+}
+
+/** Scale an RGB colour down so its normalised luminance does not exceed
+ *  `maxBrightness`. Used to keep silhouette ink dark enough that dark modules
+ *  read clearly under jsqr. */
+export function clampLuminosity(
+  r: number,
+  g: number,
+  b: number,
+  maxBrightness = 0.45,
+): { r: number; g: number; b: number } {
+  const lum = toLuminance(r, g, b) / 255;
+  if (lum <= maxBrightness) return { r, g, b };
+  const k = maxBrightness / Math.max(lum, 1e-6);
+  return {
+    r: Math.round(r * k),
+    g: Math.round(g * k),
+    b: Math.round(b * k),
+  };
+}
 
 /** Render the source illustration into a `targetSize × targetSize` transparent
  *  canvas, then return the resulting ImageData. Letterboxes a non-square source
@@ -43,18 +177,15 @@ export function rasterizeSource(
 }
 
 /** Floyd–Steinberg dither a luma-converted ImageData to a binary 0/255 grid.
- *  Transparent regions blend against white so silhouettes dither as intended. */
+ *  Caller must pass pre-blended (fully opaque) input — pipe `blendAgainstWhite`
+ *  before this if the source has any transparent pixels. */
 export function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
   const w = rgba.width;
   const h = rgba.height;
   const luma = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     const j = i * 4;
-    const a = rgba.data[j + 3] / 255;
-    const r = rgba.data[j] * a + 255 * (1 - a);
-    const g = rgba.data[j + 1] * a + 255 * (1 - a);
-    const b = rgba.data[j + 2] * a + 255 * (1 - a);
-    luma[i] = toLuminance(r, g, b);
+    luma[i] = toLuminance(rgba.data[j], rgba.data[j + 1], rgba.data[j + 2]);
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
