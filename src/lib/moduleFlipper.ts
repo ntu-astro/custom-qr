@@ -33,6 +33,9 @@ import {
 } from './codewordLayout';
 import type { SamplingSimContext } from './samplingSim';
 import { applyModuleFlip, scoreModuleAgainstTarget } from './samplingSim';
+import type { FlipBudgetPolicy, BlockFlipState } from './flipBudget';
+import { shouldAcceptFlip, buildFinderDistanceMap } from './flipBudget';
+import { ART_UP_COEFFICIENTS, DEFAULT_FAILURE_TOLERANCE, CALIBRATION_AUC } from './flipBudget.calibration';
 
 /** Per-block flip budget as a fraction of ecCount, default.
  *  RS-H corrects up to floor(ecCount/2) errors per block (≈ 0.5 ecCount). The
@@ -44,6 +47,17 @@ import { applyModuleFlip, scoreModuleAgainstTarget } from './samplingSim';
  *  and silhouette sources at every supported version. Raise via the option
  *  arg if you've tested it on a phone and want more visual punch. */
 export const DEFAULT_ECC_BUDGET_RATIO = 0.15;
+
+/** Default flip-budget policy. ART-UP probabilistic gating is enabled only
+ *  when calibration has been run (AUC > 0.85 per spec §9) — otherwise the
+ *  generated calibration file ships with DEFAULT_FAILURE_TOLERANCE = 1.0,
+ *  which effectively disables ART-UP (no cumulative-failure cap can fire),
+ *  AND we additionally fall through to 'fixed' here as a belt-and-braces
+ *  guard. */
+export const DEFAULT_FLIP_BUDGET_POLICY: FlipBudgetPolicy =
+  CALIBRATION_AUC >= 0.85
+    ? { kind: 'probabilistic', failureTolerance: DEFAULT_FAILURE_TOLERANCE }
+    : { kind: 'fixed', ratio: DEFAULT_ECC_BUDGET_RATIO };
 
 interface ModulePosition { y: number; x: number }
 
@@ -62,8 +76,11 @@ export interface FlipReport {
   flipsPerBlock: number[];
   /** Total module bits changed across all blocks. */
   modulesChanged: number;
-  /** floor(budgetRatio × ecCount); same for every block. */
+  /** floor(budgetRatio × ecCount) under the 'fixed' policy; an upper bound
+   *  (floor(ecCount/2)) under 'probabilistic'. Same for every block. */
   perBlockBudget: number;
+  /** Resolved policy actually used (echoes the input or the runtime default). */
+  policy: FlipBudgetPolicy;
 }
 
 export interface FlipResult {
@@ -73,7 +90,8 @@ export interface FlipResult {
 
 export interface FlipOptions {
   /** Override the per-block flip budget as a fraction of ecCount.
-   *  Range 0..0.49. Default DEFAULT_ECC_BUDGET_RATIO (0.15). */
+   *  Range 0..0.49. Used by the 'fixed' policy only.
+   *  Default DEFAULT_ECC_BUDGET_RATIO (0.15). Ignored under 'probabilistic'. */
   budgetRatio?: number;
   /** Sampling-Sim context for the post-mask matrix. Required since Phase 2 —
    *  the flipper needs the readback to compute per-codeword Δ-scores and to
@@ -81,6 +99,10 @@ export interface FlipOptions {
    *  sees the post-flip readback). The caller should pass a context built via
    *  `buildSamplingContext(predicted, matrix)` AFTER mask selection. */
   samplingContext: SamplingSimContext;
+  /** Optional override for the flip-budget policy. Defaults to
+   *  DEFAULT_FLIP_BUDGET_POLICY which resolves to 'probabilistic' iff
+   *  calibration has been run with AUC > 0.85, else 'fixed'. */
+  policy?: FlipBudgetPolicy;
 }
 
 /** Compute the Sampling-Sim Δ-score for a codeword: how much the importance-
@@ -146,11 +168,19 @@ export function flipModulesByCodeword(
   target: HalftoneTarget,
   options: FlipOptions,
 ): FlipResult {
-  const budgetRatio = Math.max(0, Math.min(0.49, options.budgetRatio ?? DEFAULT_ECC_BUDGET_RATIO));
+  // Resolve effective policy. If the caller passes a 'fixed' policy with a
+  // budgetRatio, prefer that ratio; otherwise honour DEFAULT_ECC_BUDGET_RATIO.
+  let policy: FlipBudgetPolicy = options.policy ?? DEFAULT_FLIP_BUDGET_POLICY;
+  if (policy.kind === 'fixed' && options.budgetRatio !== undefined) {
+    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(0.49, options.budgetRatio)) };
+  } else if (policy.kind === 'fixed') {
+    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(0.49, policy.ratio)) };
+  }
   const ctx = options.samplingContext;
   const layout = getEccLayoutForH(matrix.size);
   const cwTable = buildStreamIndexToBlockTable(layout);
   const moduleMap = buildModuleStreamMap(matrix);
+  const finderDistanceMap = policy.kind === 'probabilistic' ? buildFinderDistanceMap(matrix.size) : null;
 
   // Group modules by stream codeword. Reserved modules don't appear in the
   // moduleMap (it returns null for reserved cells), so codewords here only
@@ -201,15 +231,31 @@ export function flipModulesByCodeword(
   // Apply flips per-block. Each accepted flip propagates into the
   // SamplingSimContext via applyModuleFlip so the post-flip readback is
   // available to downstream consumers.
-  const perBlockBudget = Math.floor(budgetRatio * layout.ecCount);
+  const fixedPerBlockBudget = policy.kind === 'fixed'
+    ? Math.floor(policy.ratio * layout.ecCount)
+    : Math.floor(layout.ecCount / 2);
   const flipsPerBlock = new Array<number>(layout.ecTotalBlocks).fill(0);
   let modulesChanged = 0;
 
   for (let b = 0; b < layout.ecTotalBlocks; b++) {
     const cws = candidatesByBlock[b];
-    for (let k = 0; k < perBlockBudget && k < cws.length; k++) {
+    const blockState: BlockFlipState = {
+      cumulativeSurvivalProb: 1,
+      flipsAccepted: 0,
+      ecCount: layout.ecCount,
+    };
+    for (let k = 0; k < cws.length; k++) {
       const cw = cws[k];
       if (cw.delta <= 0) break; // no further gain in this block
+      const { accepted, pNew } = shouldAcceptFlip(
+        policy,
+        blockState,
+        { modules: cw.modules },
+        ctx,
+        ART_UP_COEFFICIENTS,
+        finderDistanceMap,
+      );
+      if (!accepted) break;
       for (const { y, x } of cw.modules) {
         const desired = target.target[y][x];
         if (ctx.matrix.modules[y][x] !== desired) {
@@ -217,6 +263,8 @@ export function flipModulesByCodeword(
           modulesChanged++;
         }
       }
+      blockState.flipsAccepted++;
+      blockState.cumulativeSurvivalProb *= 1 - pNew;
       flipsPerBlock[b]++;
     }
   }
@@ -226,6 +274,6 @@ export function flipModulesByCodeword(
   // sampling context — its readback now reflects the post-flip state.
   return {
     matrix: ctx.matrix,
-    report: { flipsPerBlock, modulesChanged, perBlockBudget },
+    report: { flipsPerBlock, modulesChanged, perBlockBudget: fixedPerBlockBudget, policy },
   };
 }

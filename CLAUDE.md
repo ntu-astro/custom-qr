@@ -4,7 +4,7 @@ This file gives an agent enough context to make non-obvious decisions in this re
 
 ## What this is
 
-A small client-only React app that turns a URL into a halftone-style QR code. Implementation follows Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia). Deployed as a Cloudflare Worker with static assets (SPA mode). No backend, no tracking, no auth — pure browser code.
+A small client-only React app that turns a URL into a halftone-style QR code. Implementation follows Chu, Chang, Lee, Mitra 2013 ("Halftone QR Codes", SIGGRAPH Asia), with Phase-2 Sampling-Sim scoring per Zhang et al. 2021 ("ArtCoder", CVPR) and an optional qart.js-style composite render mode. Deployed as a Cloudflare Worker with static assets (SPA mode). No backend, no tracking, no auth — pure browser code.
 
 ## Technology snapshot
 
@@ -18,7 +18,7 @@ A small client-only React app that turns a URL into a halftone-style QR code. Im
 
 1. **No quiet zone around the QR.** Canonical halftone QRs intentionally fill the whole canvas. Phone cameras decode them fine but pure-JS decoders (jsqr) are stricter — the in-browser ScanBadge is conservative.
 2. **ECC level H, hardcoded.** See `QR_ECC_LEVEL` in `src/types.ts`. The mask-optimiser and module-flipper assume H. Don't change without re-deriving the codeword/ECC tables in `src/lib/codewordLayout.ts`.
-3. **Per-RS-block flip budget = 0.15 × ecCount** (`DEFAULT_ECC_BUDGET_RATIO` in `moduleFlipper.ts`). The paper uses 0.49; we're conservative because jsqr is strict. Empirically tuned — bump only if you've tested on a phone.
+3. **Per-RS-block flip budget = 0.15 × ecCount** (`DEFAULT_ECC_BUDGET_RATIO` in `moduleFlipper.ts`) under the default `'fixed'` `FlipBudgetPolicy`. The paper uses 0.49; we're conservative because jsqr is strict. Empirically tuned — bump only if you've tested on a phone. The alternative `'probabilistic'` policy (ART-UP) is enabled iff calibration has been run with AUC > 0.85; until then it's disabled via `DEFAULT_FAILURE_TOLERANCE = 1.0` in `src/lib/flipBudget.calibration.ts` and the runtime falls through to `'fixed'`.
 4. **`useQrPipeline` hook / poster `useMemo` split is load-bearing.** The hook (`src/hooks/useQrPipeline.ts`) rebuilds the QR (expensive: builds 8 mask candidates, scores, flips) and re-runs only on `[url, templateId, customSource, silhouetteScale, multiSize]`. The poster is a `useMemo` in `App.tsx` that depends on `[qrCanvas, caption, posterSize, palette]`. Don't recouple — typing in the caption shouldn't re-run mask optimisation.
 5. **Composer halo uses a seeded PRNG.** `composer.ts` uses `mulberry32` seeded from `caption.length + size.width + size.height` so the same inputs produce the same poster. Don't reintroduce `Math.random`.
 
@@ -67,17 +67,18 @@ npm run deploy        # wrangler deploy (Cloudflare Worker w/ static assets)
 4. Add UI for it in `AdvancedOptions.tsx`.
 
 ### Touching the halftone pipeline
-The pipeline has four stages — never short-circuit one without understanding the next:
+The pipeline has six stages — never short-circuit one without understanding the next:
 
 ```
 buildMatrix (qrMatrix.ts)
   → computeHalftoneTarget (halftoneTarget.ts)
-  → pickBestMask (maskOptimizer.ts)
-  → flipModulesByCodeword (moduleFlipper.ts)
-  → render (halftoneRenderer.ts)
+  → buildPredictedCanvas (predictedCanvas.ts)
+  → pickBestMask (maskOptimizer.ts)         [Sampling-Sim totalScore × 8]
+  → flipModulesByCodeword (moduleFlipper.ts) [Sampling-Sim Δ-score + FlipBudgetPolicy]
+  → render (halftoneRenderer.ts | compositeRenderer.ts)
 ```
 
-Stage 1 produces a flat `Uint8Array` `reserved` mask (`QRMatrix.reserved`, 1 = reserved/0 = data, indexed `[y * size + x]`). Stage 2 takes that mask and the source ImageData and produces a `HalftoneTarget` whose `importance: number[][]` carries the fractional fidelity weights (0 / 0.1 / 1.0). Stage 3a (flip) reads `target.importance` and `codewordLayout.ts` for the module ↔ codeword inverse map. Don't conflate the two — the matrix's `reserved` mask is binary, the target's `importance` is weighted. Tests in `src/lib/*.test.ts` exercise each stage individually.
+Stage 1 produces a flat `Uint8Array` `reserved` mask (`QRMatrix.reserved`, 1 = reserved/0 = data, indexed `[y * size + x]`). Stage 2 takes that mask and the source ImageData and produces a `HalftoneTarget` whose `importance: number[][]` carries the fractional fidelity weights (0 / 0.1 / 1.0). Stage 3 builds the subpixel-resolution `PredictedCanvas` once per pipeline run; renderers and Sampling-Sim both consume it. Stage 4 (mask) builds 8 `SamplingSimContext` objects against `predicted` and ranks by `totalScore`. Stage 5 (flip) reads `target.importance`, `target.target`, `codewordLayout.ts` for the module ↔ codeword inverse map, and the post-mask `SamplingSimContext` for Δ-score + per-block acceptance gating. Don't conflate the matrix `reserved` mask (binary) with the target `importance` (weighted). Tests in `src/lib/*.test.ts` exercise each stage individually; `docs/PIPELINE.md` has the full data-flow diagram.
 
 ### Verifying changes
 Always run **all of**: `npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`. CI enforces all five.
