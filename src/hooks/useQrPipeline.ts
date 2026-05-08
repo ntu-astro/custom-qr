@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ScanResult, FilterMode } from '../types';
+import type { ScanResult, FilterMode, RenderMode } from '../types';
 import { DEFAULT_PLACEHOLDER_URL } from '../types';
 import { findTemplate } from '../templates/presets';
 import type { CustomSource } from '../appReducer';
@@ -8,6 +8,7 @@ import { computeHalftoneTarget } from '../lib/halftoneTarget';
 import { pickBestMask } from '../lib/maskOptimizer';
 import { flipModulesByCodeword } from '../lib/moduleFlipper';
 import { render as renderHalftone } from '../lib/halftoneRenderer';
+import { render as renderComposite } from '../lib/compositeRenderer';
 import { buildPredictedCanvas } from '../lib/predictedCanvas';
 import { verify } from '../lib/scanVerifier';
 import { loadImageData } from '../lib/imageOps';
@@ -25,6 +26,7 @@ export interface QrPipelineInput {
   silhouetteScale: number;
   multiSize: boolean;
   filter: FilterMode;
+  renderMode: RenderMode;
 }
 
 export interface QrPipelineState {
@@ -49,7 +51,7 @@ export interface QrPipelineState {
  *  source (e.g. upload validation) and is responsible for merging them at the
  *  display layer. */
 export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
-  const { url, templateId, customSource, silhouetteScale, multiSize, filter } = input;
+  const { url, templateId, customSource, silhouetteScale, multiSize, filter, renderMode } = input;
 
   const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
@@ -97,15 +99,22 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
           matrix,
           marginCells,
           silhouetteScale,
-          'halftone',
+          renderMode,
           filter,
         );
 
-        const qr = renderHalftone(matrix, predicted, imageData, {
-          marginPx: CANVAS_MARGIN_PX,
-          silhouetteScale,
-          filter,
-        });
+        // Stage 4: dispatch on render mode.
+        const qr = renderMode === 'composite'
+          ? renderComposite(matrix, predicted, {
+              marginPx: CANVAS_MARGIN_PX,
+              silhouetteScale,
+              filter,
+            })
+          : renderHalftone(matrix, predicted, imageData, {
+              marginPx: CANVAS_MARGIN_PX,
+              silhouetteScale,
+              filter,
+            });
 
         const sizes = multiSize ? [qr.width, 200] : [qr.width];
         const results = verify(qr, sizes);
@@ -134,7 +143,7 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
     return () => {
       cancelled = true;
     };
-  }, [url, templateId, customSource, silhouetteScale, multiSize, filter]);
+  }, [url, templateId, customSource, silhouetteScale, multiSize, filter, renderMode]);
 
   return { qrCanvas, scanResults, isRendering, pipelineError };
 }

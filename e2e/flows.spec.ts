@@ -14,6 +14,31 @@ import { test, expect } from '@playwright/test';
 // initial render a generous window so we don't race against the worker.
 const QR_RENDER_TIMEOUT = 20_000;
 test.describe('Astro QR flows', () => {
+  test('switching render style to Composite re-renders the QR without error', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: QR_RENDER_TIMEOUT });
+
+    await page.getByText('Advanced options', { exact: true }).click();
+
+    const composite = page.getByRole('radio', { name: /Composite/i });
+    await composite.check();
+    await expect(composite).toBeChecked();
+
+    // Pipeline must finish; "Scannable" badge must appear (composite + mono +
+    // built-in template should decode via jsqr).
+    await expect(page.getByText(/Scannable/i).first()).toBeVisible({
+      timeout: QR_RENDER_TIMEOUT,
+    });
+
+    // Switch back to Halftone.
+    const halftone = page.getByRole('radio', { name: /Halftone/i });
+    await halftone.check();
+    await expect(halftone).toBeChecked();
+    await expect(page.getByText(/Scannable/i).first()).toBeVisible({
+      timeout: QR_RENDER_TIMEOUT,
+    });
+  });
+
   test('multi-size scan check renders both screen and print badges', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: QR_RENDER_TIMEOUT });

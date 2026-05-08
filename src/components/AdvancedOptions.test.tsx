@@ -5,13 +5,17 @@ import { AdvancedOptions } from './AdvancedOptions';
 
 describe('AdvancedOptions', () => {
   it('renders the silhouette scale as a percentage', () => {
-    render(<AdvancedOptions multiSize={false} silhouetteScale={0.7} onChange={vi.fn()} />);
+    render(
+      <AdvancedOptions multiSize={false} silhouetteScale={0.7} renderMode="halftone" onChange={vi.fn()} />,
+    );
     expect(screen.getByText('70%')).toBeInTheDocument();
   });
 
   it('calls onChange with silhouetteScale fraction when slider changes', () => {
     const onChange = vi.fn();
-    render(<AdvancedOptions multiSize={false} silhouetteScale={0.7} onChange={onChange} />);
+    render(
+      <AdvancedOptions multiSize={false} silhouetteScale={0.7} renderMode="halftone" onChange={onChange} />,
+    );
     const slider = screen.getByRole('slider');
     fireEvent.change(slider, { target: { value: '80' } });
     expect(onChange).toHaveBeenCalledWith({ silhouetteScale: 0.8 });
@@ -19,7 +23,9 @@ describe('AdvancedOptions', () => {
 
   it('calls onChange with multiSize: true when checkbox is checked', () => {
     const onChange = vi.fn();
-    render(<AdvancedOptions multiSize={false} silhouetteScale={1} onChange={onChange} />);
+    render(
+      <AdvancedOptions multiSize={false} silhouetteScale={1} renderMode="halftone" onChange={onChange} />,
+    );
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
     expect(onChange).toHaveBeenCalledWith({ multiSize: true });
@@ -27,9 +33,29 @@ describe('AdvancedOptions', () => {
 
   it('calls onChange with multiSize: false when checkbox is unchecked', () => {
     const onChange = vi.fn();
-    render(<AdvancedOptions multiSize={true} silhouetteScale={1} onChange={onChange} />);
+    render(
+      <AdvancedOptions multiSize={true} silhouetteScale={1} renderMode="halftone" onChange={onChange} />,
+    );
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
     expect(onChange).toHaveBeenCalledWith({ multiSize: false });
+  });
+
+  it('emits renderMode: "composite" when the Composite radio is selected', () => {
+    const onChange = vi.fn();
+    render(
+      <AdvancedOptions multiSize={false} silhouetteScale={1} renderMode="halftone" onChange={onChange} />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Composite/i }));
+    expect(onChange).toHaveBeenCalledWith({ renderMode: 'composite' });
+  });
+
+  it('emits renderMode: "halftone" when the Halftone radio is selected', () => {
+    const onChange = vi.fn();
+    render(
+      <AdvancedOptions multiSize={false} silhouetteScale={1} renderMode="composite" onChange={onChange} />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Halftone/i }));
+    expect(onChange).toHaveBeenCalledWith({ renderMode: 'halftone' });
   });
 });

@@ -1,12 +1,14 @@
 import type { AdvancedSettings } from '../appReducer';
+import type { RenderMode } from '../types';
 
 interface Props {
   multiSize: boolean;
   silhouetteScale: number;
+  renderMode: RenderMode;
   onChange: (patch: Partial<AdvancedSettings>) => void;
 }
 
-export function AdvancedOptions({ multiSize, silhouetteScale, onChange }: Props) {
+export function AdvancedOptions({ multiSize, silhouetteScale, renderMode, onChange }: Props) {
   const scalePct = Math.round(silhouetteScale * 100);
   return (
     <div className="flex flex-col gap-4">
@@ -25,6 +27,37 @@ export function AdvancedOptions({ multiSize, silhouetteScale, onChange }: Props)
           className="w-full"
         />
       </label>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm text-olivegray">Render style</legend>
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            name="renderMode"
+            value="halftone"
+            checked={renderMode === 'halftone'}
+            onChange={() => onChange({ renderMode: 'halftone' })}
+          />
+          <span className={renderMode === 'halftone' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
+            Halftone
+          </span>
+        </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            name="renderMode"
+            value="composite"
+            checked={renderMode === 'composite'}
+            onChange={() => onChange({ renderMode: 'composite' })}
+          />
+          <span className={renderMode === 'composite' ? 'font-semibold text-plumblack' : 'text-olivegray'}>
+            Composite
+          </span>
+        </label>
+        <p className="text-xs text-olivegray">
+          Halftone diffuses the image across all modules; Composite paints a clean QR centre with the image as surround.
+        </p>
+      </fieldset>
 
       <label className="flex items-center gap-3">
         <input
