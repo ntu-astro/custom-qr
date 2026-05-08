@@ -12,7 +12,7 @@
 
 import type { QRMatrix, RenderOptions, FilterMode } from '../types';
 import {
-  isOutsideSilhouette,
+  SILHOUETTE_ALPHA_THRESHOLD,
   STRUCTURAL_INK_RGB,
 } from './imageOps';
 import type { PredictedCanvas } from './predictedCanvas';
@@ -94,11 +94,16 @@ export function render(
       ctx.fillRect(cx, cy, subPx, subPx);
     }
 
-    // For filter='color': any surround subpixel that reads as outside the
-    // silhouette (transparent or near-white) gets overlaid with structural ink
-    // so finder-pattern detection still has dark anchors when the photo
-    // doesn't fill the canvas. For filter='mono', the predicted canvas was
-    // already thresholded — no per-subpixel fallback needed.
+    // For filter='color': only fall back to structural ink on TRULY
+    // TRANSPARENT surround subpixels (alpha-only check). The general
+    // `isOutsideSilhouette` helper also treats near-white opaque pixels as
+    // outside, which is correct for halftone (catches JPEG sources with white
+    // backgrounds) but wrong for composite — bright pixels inside an opaque
+    // photo (e.g. the white foam in The Great Wave) ARE part of the image and
+    // must render as themselves. The QR is decodable either way: data lives in
+    // the centre subpixel, which the dark-module branch above already paints.
+    // The fallback is purely cosmetic, only meaningful when `silhouetteScale`
+    // letterboxes the source or the source itself has alpha (PNG/SVG).
     if (filter === 'color') {
       for (let dy = 0; dy < 3; dy++) {
         for (let dx = 0; dx < 3; dx++) {
@@ -106,7 +111,8 @@ export function render(
           const sx = (cell.mx + marginCells) * SUBPX_PER_CELL + dx;
           const sy = (cell.my + marginCells) * SUBPX_PER_CELL + dy;
           const idx4 = (sy * predicted.width + sx) * 4;
-          if (isOutsideSilhouette(predicted.raster.data, idx4)) {
+          const alpha = predicted.raster.data[idx4 + 3] / 255;
+          if (alpha < SILHOUETTE_ALPHA_THRESHOLD) {
             const ssx = cell.px + dx * subPx;
             const ssy = cell.py + dy * subPx;
             ctx.fillStyle = STRUCTURAL_INK_RGB;
