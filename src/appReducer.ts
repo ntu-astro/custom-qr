@@ -87,10 +87,32 @@ export function getInitialState(): AppState {
     const raw = localStorage.getItem(PERSIST_KEY);
     if (!raw) return DEFAULT_STATE;
     const parsed: PersistedState = JSON.parse(raw);
+    // Only adopt a persisted templateId that still resolves to a known preset
+    // (or 'custom'); silently fall back otherwise. This keeps `filter` in sync
+    // with `defaultFilterFor(templateId)` — without it, refreshing on an art
+    // template restores templateId='…' but filter='mono' (the astronomy
+    // default for the unrelated DEFAULT_TEMPLATE_ID), which renders the
+    // art piece monochrome until the user re-clicks the tile.
+    let templateId = DEFAULT_STATE.templateId;
+    if (typeof parsed.templateId === 'string') {
+      if (parsed.templateId === 'custom') {
+        // 'custom' tab without a customSource has no meaningful render; the
+        // image cache is in-memory and will miss after refresh anyway.
+        templateId = DEFAULT_STATE.templateId;
+      } else {
+        try {
+          findTemplate(parsed.templateId);
+          templateId = parsed.templateId;
+        } catch {
+          /* unknown id — keep default */
+        }
+      }
+    }
     return {
       ...DEFAULT_STATE,
       ...(typeof parsed.url === 'string' ? { url: parsed.url } : {}),
-      ...(typeof parsed.templateId === 'string' ? { templateId: parsed.templateId } : {}),
+      templateId,
+      filter: defaultFilterFor(templateId),
       ...(typeof parsed.caption === 'string' ? { caption: parsed.caption } : {}),
     };
   } catch {
