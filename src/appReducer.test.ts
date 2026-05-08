@@ -63,6 +63,7 @@ const baseState: AppState = {
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
   multiSize: false,
   silhouetteScale: 1,
+  renderMode: 'halftone',
 };
 
 describe('PERSIST_KEY', () => {

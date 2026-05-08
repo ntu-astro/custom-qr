@@ -59,6 +59,17 @@ vi.mock('../lib/halftoneRenderer', () => {
   };
 });
 
+vi.mock('../lib/compositeRenderer', () => {
+  return {
+    render: vi.fn(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 100;
+      canvas.height = 100;
+      return canvas;
+    }),
+  };
+});
+
 vi.mock('../lib/predictedCanvas', () => ({
   buildPredictedCanvas: vi.fn(() => ({
     data: new ImageData(63, 63),
@@ -89,6 +100,7 @@ const baseInput: QrPipelineInput = {
   silhouetteScale: 1,
   multiSize: false,
   filter: 'mono',
+  renderMode: 'halftone',
 };
 
 beforeEach(() => {
