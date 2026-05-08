@@ -14,6 +14,10 @@ export default defineConfig([
     'blob-report',
     'playwright/.cache',
     'coverage',
+    // Ephemeral agent isolation worktrees — they have their own copies of
+    // the source tree and confuse tsconfigRootDir auto-detection. The
+    // harness manages their lifecycle; ESLint should never traverse them.
+    '.claude',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
