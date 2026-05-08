@@ -10,14 +10,10 @@
  *  centre-subpixel override and surround paint are the only renderer-side
  *  responsibilities. */
 
-import type { QRMatrix, RenderOptions, FilterMode } from '../types';
-import {
-  SILHOUETTE_ALPHA_THRESHOLD,
-  STRUCTURAL_INK_RGB,
-} from './imageOps';
+import type { QRMatrix, RenderOptions } from '../types';
+import { STRUCTURAL_INK_RGB } from './imageOps';
 import type { PredictedCanvas } from './predictedCanvas';
 import { computeReservedChecksum } from './predictedCanvas';
-import { SUBPX_PER_CELL } from './pipelineConstants';
 import { eachCell } from './cellIteration';
 import type { Renderer } from './renderers/types';
 
@@ -38,6 +34,13 @@ export function render(
   predicted: PredictedCanvas,
   opts: RenderOptions,
 ): HTMLCanvasElement {
+  // `opts` is part of the render() signature for symmetry with
+  // halftoneRenderer and the Renderer adapter, but the composite path now
+  // derives everything it needs from `predicted` — `filter` is baked into
+  // `predicted.data` by `buildPredictedCanvas`. Reference it explicitly so
+  // future tunables (border colour, accent overrides) drop in here without
+  // the parameter triggering an unused-arg lint.
+  void opts;
   if (import.meta.env?.DEV) {
     const expected = computeReservedChecksum(matrix.reserved);
     if (expected !== predicted.reservedChecksum) {
@@ -55,7 +58,6 @@ export function render(
   const marginCells = predicted.marginCells;
   const totalCells = matrix.size + 2 * marginCells;
   const sizePx = totalCells * cellPx;
-  const filter: FilterMode = opts.filter ?? 'mono';
 
   const canvas = document.createElement('canvas');
   canvas.width = sizePx;
@@ -70,11 +72,15 @@ export function render(
   // Per-cell overrides:
   //   - reserved cells: clear, then paint full-cell with structural ink (dark)
   //     or clearRect (light). Reserved cells need high decode contrast so
-  //     composite always uses STRUCTURAL_INK_RGB regardless of filter, even
-  //     though halftone-mono tints with silhouetteInkRgb. The intentional
-  //     divergence keeps finder/timing/alignment patterns sharp against a
-  //     photo-coloured surround.
-  //   - data cells: override the centre subpixel only.
+  //     composite always uses STRUCTURAL_INK_RGB regardless of filter. The
+  //     intentional divergence from halftone-mono (which tints with
+  //     silhouetteInkRgb) keeps finder/timing/alignment patterns sharp
+  //     against a photo-coloured surround.
+  //   - data cells: override the centre subpixel only. Surround subpixels
+  //     are already correct from `paintSurround` — `predicted.data` is opaque
+  //     RGB in both filter modes (composite-mono thresholds; composite-color
+  //     blends transparent regions onto white in `predictedCanvas.ts`), so
+  //     there's no longer an alpha-fallback to apply.
   eachCell(matrix, marginCells, cellPx, (cell) => {
     if (!cell.inMatrix) return;
     if (cell.isReserved) {
@@ -92,34 +98,6 @@ export function render(
     if (cell.isModuleDark) {
       ctx.fillStyle = STRUCTURAL_INK_RGB;
       ctx.fillRect(cx, cy, subPx, subPx);
-    }
-
-    // For filter='color': only fall back to structural ink on TRULY
-    // TRANSPARENT surround subpixels (alpha-only check). The general
-    // `isOutsideSilhouette` helper also treats near-white opaque pixels as
-    // outside, which is correct for halftone (catches JPEG sources with white
-    // backgrounds) but wrong for composite — bright pixels inside an opaque
-    // photo (e.g. the white foam in The Great Wave) ARE part of the image and
-    // must render as themselves. The QR is decodable either way: data lives in
-    // the centre subpixel, which the dark-module branch above already paints.
-    // The fallback is purely cosmetic, only meaningful when `silhouetteScale`
-    // letterboxes the source or the source itself has alpha (PNG/SVG).
-    if (filter === 'color') {
-      for (let dy = 0; dy < 3; dy++) {
-        for (let dx = 0; dx < 3; dx++) {
-          if (dx === 1 && dy === 1) continue; // centre subpixel handled above
-          const sx = (cell.mx + marginCells) * SUBPX_PER_CELL + dx;
-          const sy = (cell.my + marginCells) * SUBPX_PER_CELL + dy;
-          const idx4 = (sy * predicted.width + sx) * 4;
-          const alpha = predicted.raster.data[idx4 + 3] / 255;
-          if (alpha < SILHOUETTE_ALPHA_THRESHOLD) {
-            const ssx = cell.px + dx * subPx;
-            const ssy = cell.py + dy * subPx;
-            ctx.fillStyle = STRUCTURAL_INK_RGB;
-            ctx.fillRect(ssx, ssy, subPx, subPx);
-          }
-        }
-      }
     }
   });
 

@@ -135,10 +135,14 @@ export function buildPredictedCanvas(
     data = thresholdToImageData(blended);
     dataIsGreyscale = true;
   } else {
-    // composite + color: pass the un-lifted raster through unchanged. The
-    // composite renderer samples per-subpixel from `data` directly and handles
-    // truly transparent letterbox subpixels via its own alpha-only fallback.
-    data = lifted;
+    // composite + color: alpha-blend the un-lifted raster against white so
+    // transparent subpixels (PNG/SVG backgrounds, silhouetteScale<1 letterbox)
+    // resolve to white instead of leaking alpha=0 into the renderer and
+    // sampling-sim. Opaque sources are unaffected (blendAgainstWhite is
+    // identity at alpha=255), so bright photo content is preserved verbatim.
+    // RGB is preserved, so dataIsGreyscale stays false; sampling-sim still
+    // runs toLuminance for accurate per-channel scoring.
+    data = blendAgainstWhite(lifted);
     dataIsGreyscale = false;
   }
 
