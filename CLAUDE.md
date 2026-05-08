@@ -42,14 +42,19 @@ See README's "Project layout" section. Important non-obvious things:
 
 ```bash
 npm install
-npm run dev           # vite dev :5173
-npm run typecheck     # tsc -b --noEmit
-npm run lint          # eslint . --max-warnings=0  (zero warnings tolerated)
-npm test              # vitest run (38 tests across 8 files)
-npm run test:e2e      # Playwright chromium + webkit (builds first, runs against vite preview :4173)
-npm run test:e2e:ui   # Playwright UI mode
-npm run build         # → dist/
-npm run deploy        # wrangler deploy (Cloudflare Worker w/ static assets)
+npm run dev                    # vite dev :5173
+npm run typecheck              # tsc -b --noEmit
+npm run lint                   # eslint . --max-warnings=0  (zero warnings tolerated)
+npm test                       # vitest run (238 tests across 27 files)
+npm run test:coverage          # vitest run --coverage (CI gate: 80% lines, 70% branches)
+npm run test:e2e               # Playwright chromium + webkit (26 tests; builds first, runs against vite preview :4173)
+npm run test:e2e:ui            # Playwright UI mode
+npm run build                  # → dist/
+npm run deploy                 # wrangler deploy (Cloudflare Worker w/ static assets)
+
+# Dev-only:
+npm run calibrate:flip-budget  # tsx scripts/calibrate-flip-budget.ts
+                               # — re-run when jsqr is upgraded or the rendering pipeline changes materially.
 ```
 
 ## Common tasks
@@ -81,7 +86,15 @@ buildMatrix (qrMatrix.ts)
 Stage 1 produces a flat `Uint8Array` `reserved` mask (`QRMatrix.reserved`, 1 = reserved/0 = data, indexed `[y * size + x]`). Stage 2 takes that mask and the source ImageData and produces a `HalftoneTarget` whose `importance: number[][]` carries the fractional fidelity weights (0 / 0.1 / 1.0). Stage 3 builds the subpixel-resolution `PredictedCanvas` once per pipeline run; renderers and Sampling-Sim both consume it. Stage 4 (mask) builds 8 `SamplingSimContext` objects against `predicted` and ranks by `totalScore`. Stage 5 (flip) reads `target.importance`, `target.target`, `codewordLayout.ts` for the module ↔ codeword inverse map, and the post-mask `SamplingSimContext` for Δ-score + per-block acceptance gating. Don't conflate the matrix `reserved` mask (binary) with the target `importance` (weighted). Tests in `src/lib/*.test.ts` exercise each stage individually; `docs/PIPELINE.md` has the full data-flow diagram.
 
 ### Verifying changes
-Always run **all of**: `npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`. CI enforces all five.
+Always run **all of**: `npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`. CI enforces all five plus a bundle-size budget (gzipped JS < 350 KB; currently ~127 KB).
+
+**Perf regression test:** `src/lib/pipelineIntegration.perf.test.ts` measures V10 halftone-mono wall-clock (median of 7 iterations) and asserts < 500 ms. Auto-skips when `CI=true` or `SKIP_PERF=true`. If you touch `samplingSim.ts` or `moduleFlipper.ts`, run it locally before merging.
+
+**48-case integration matrix:** `src/lib/pipelineIntegration.test.ts` exercises the full pipeline across 3 versions × 2 render modes × 2 filters × 2 source types × 2 multiSize options. Strict decode assertions are scoped to empirically 100%-passing axes (halftone-mono / halftone-color silhouette at native size for V5/V10/V15); composite axes are observational. If you touch the pipeline, run it.
+
+**Pipeline reference:** [`docs/PIPELINE.md`](docs/PIPELINE.md) has the canonical data-flow diagram and stage-by-stage description. Always check this first before touching multiple stages.
+
+**Tracked-but-deferred work:** [`docs/FOLLOWUPS.md`](docs/FOLLOWUPS.md). Trigger conditions, file pointers, and "what needs to happen first" are recorded there. Update (don't replace) the tracker when an item ships, gets re-scoped, or is permanently dropped.
 
 ## Gotchas
 
