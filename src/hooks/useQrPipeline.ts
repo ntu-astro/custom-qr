@@ -84,16 +84,18 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
         const baseMatrix = buildMatrix(resolvedUrl);
 
         let sourcePath: string;
+        let cropToSquare = false;
         if (templateId === 'custom' && customSource) {
           const cached = getCachedImageDataUrl(customSource.imageHash);
           if (!cached) {
             throw new Error('Custom image cache miss — please re-upload your image.');
           }
           sourcePath = cached;
+          cropToSquare = customSource.cropToSquare === true;
         } else {
           sourcePath = findTemplate(templateId).sourcePath;
         }
-        const imageData = await loadImageData(sourcePath);
+        const imageData = await loadImageData(sourcePath, { cropToSquare });
 
         // Stage 2 prep: dithered halftone target (per-module dark/light vote
         // + importance weights). Used by both mask selection and flip scoring.

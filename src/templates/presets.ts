@@ -6,36 +6,42 @@ export const TEMPLATES: TemplatePreset[] = [
     displayName: 'Earth',
     sourcePath: '/templates/earth.svg',
     palette: { accent: '#2c6b9c' },
+    category: 'astronomy',
   },
   {
     id: 'orion',
     displayName: 'Orion',
     sourcePath: '/templates/orion.svg',
     palette: { accent: '#4b6fb5' },
+    category: 'astronomy',
   },
   {
     id: 'scorpius',
     displayName: 'Scorpius',
     sourcePath: '/templates/scorpius.svg',
     palette: { accent: '#c0392b' },
+    category: 'astronomy',
   },
   {
     id: 'crux',
     displayName: 'Crux (Southern Cross)',
     sourcePath: '/templates/crux.svg',
     palette: { accent: '#e8e1c4' },
+    category: 'astronomy',
   },
   {
     id: 'sagittarius-teapot',
     displayName: 'Sagittarius Teapot',
     sourcePath: '/templates/sagittarius-teapot.svg',
     palette: { accent: '#c89055' },
+    category: 'astronomy',
   },
   {
     id: 'ntuas',
     displayName: 'NTUAS',
     sourcePath: '/templates/ntuas.svg',
     palette: { accent: '#211922' },
+    category: 'astronomy',
   },
 ];
 

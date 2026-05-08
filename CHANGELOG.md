@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Changed
+
+- Default `renderMode` flipped from `'halftone'` to `'composite'` in
+  `DEFAULT_STATE` (`src/appReducer.ts`). The Advanced-options "Render style"
+  radio group now lists Composite first to match the new default. Existing
+  users see no change because `renderMode` is not persisted in
+  `localStorage` — every reload starts from the new default.
 
 ## [0.2.0] - 2026-05-08
 

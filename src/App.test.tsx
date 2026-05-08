@@ -64,7 +64,7 @@ describe('App — header', () => {
     render(<App />);
     expect(
       screen.getByText(
-        'Halftone-style QR codes for NTU Astronomical Society. No backend, no tracking.',
+        'Custom QR codes for NTU Astronomical Society. No backend, no tracking.',
       ),
     ).toBeInTheDocument();
   });

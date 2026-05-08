@@ -12,6 +12,16 @@ export interface ControlsProps {
   templateId: string;
   onTemplateSelect: (id: string) => void;
   customSourceLabel?: string;
+  /** Data URL of the uploaded custom source, resolved from the in-memory
+   *  image cache. When present, the Custom tab renders a real preview
+   *  instead of a placeholder tile. */
+  customSourceDataUrl?: string;
+  /** True when a custom source is uploaded and the user has chosen "Square"
+   *  centre-crop. Only meaningful when templateId === 'custom'. */
+  customCropToSquare?: boolean;
+  /** Called when the user toggles between Original and Square crop for the
+   *  uploaded custom source. Only invoked when a custom source is present. */
+  onCustomCropToSquareChange?: (value: boolean) => void;
 
   caption: string;
   onCaptionChange: (v: string) => void;
@@ -87,8 +97,11 @@ export function Controls(props: ControlsProps) {
         <TemplatePicker
           selectedId={props.templateId}
           customSourceLabel={props.customSourceLabel}
+          customSourceDataUrl={props.customSourceDataUrl}
           onSelect={props.onTemplateSelect}
           onUploadClick={() => document.getElementById(fileInputId)?.click()}
+          customCropToSquare={props.customCropToSquare}
+          onCustomCropToSquareChange={props.onCustomCropToSquareChange}
         />
         <input
           id={fileInputId}

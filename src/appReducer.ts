@@ -7,13 +7,18 @@ export interface CustomSource {
    *  only carries this small, stable identifier. */
   imageHash: string;
   filename: string;
+  /** When true, the upload pipeline centre-crops the source to a square that
+   *  fills the QR canvas (no transparent letterbox gutters). When false /
+   *  unset (default), the source is letterboxed and gutter modules render as
+   *  regular QR squares. */
+  cropToSquare?: boolean;
 }
 
 export interface AdvancedSettings {
   multiSize: boolean;
   /** 0.3..1 — fraction of the QR canvas covered by the silhouette. */
   silhouetteScale: number;
-  /** 'halftone' (default, Chu et al. 2013) | 'composite' (qart.js-style). */
+  /** 'composite' (default, qart.js-style) | 'halftone' (Chu et al. 2013). */
   renderMode: RenderMode;
 }
 
@@ -42,7 +47,7 @@ const DEFAULT_STATE: AppState = {
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
   multiSize: false,
   silhouetteScale: 1,
-  renderMode: 'halftone',
+  renderMode: 'composite',
 };
 
 /** Versioned localStorage key. Bump the suffix to invalidate persisted state. */
