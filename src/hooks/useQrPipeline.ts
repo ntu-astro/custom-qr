@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ScanResult } from '../types';
+import type { ScanResult, FilterMode } from '../types';
 import { DEFAULT_PLACEHOLDER_URL } from '../types';
 import { findTemplate } from '../templates/presets';
 import type { CustomSource } from '../appReducer';
@@ -22,6 +22,7 @@ export interface QrPipelineInput {
   customSource: CustomSource | null;
   silhouetteScale: number;
   multiSize: boolean;
+  filter: FilterMode;
 }
 
 export interface QrPipelineState {
@@ -46,7 +47,7 @@ export interface QrPipelineState {
  *  source (e.g. upload validation) and is responsible for merging them at the
  *  display layer. */
 export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
-  const { url, templateId, customSource, silhouetteScale, multiSize } = input;
+  const { url, templateId, customSource, silhouetteScale, multiSize, filter } = input;
 
   const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
@@ -87,9 +88,7 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
         const qr = renderHalftone(matrix, imageData, {
           marginPx: CANVAS_MARGIN_PX,
           silhouetteScale,
-          // Custom uploads are assumed to be colour photos; built-in templates
-          // are pure-black silhouettes where colour halftone has no effect.
-          colorHalftone: templateId === 'custom',
+          filter,
         });
 
         const sizes = multiSize ? [qr.width, 200] : [qr.width];
@@ -119,7 +118,7 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
     return () => {
       cancelled = true;
     };
-  }, [url, templateId, customSource, silhouetteScale, multiSize]);
+  }, [url, templateId, customSource, silhouetteScale, multiSize, filter]);
 
   return { qrCanvas, scanResults, isRendering, pipelineError };
 }

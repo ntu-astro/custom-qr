@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
-import type { Palette } from './types';
+import type { Palette, FilterMode } from './types';
 import { findTemplate } from './templates/presets';
 import { Controls } from './components/Controls';
 import { QrPreview } from './components/QrPreview';
@@ -31,12 +31,17 @@ export default function App() {
   // optimisation. The poster compositor below uses the rest.
   const { url, templateId, customSource, silhouetteScale, multiSize, caption, posterSize } = state;
 
+  // Custom uploads are assumed to be colour photos; built-in templates are
+  // pure-black silhouettes where the colour filter has no effect.
+  const filter: FilterMode = templateId === 'custom' ? 'color' : 'mono';
+
   const { qrCanvas, scanResults, isRendering, pipelineError } = useQrPipeline({
     url,
     templateId,
     customSource,
     silhouetteScale,
     multiSize,
+    filter,
   });
 
   // Persist a tiny slice of state across reloads. Intentionally excludes

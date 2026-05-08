@@ -34,6 +34,13 @@ export interface ScanResult {
   decoded?: string;
 }
 
+/** Filter mode for halftone ink rendering.
+ *  - `'mono'`: silhouette ink collapses to a single dominant tone derived from
+ *    the source. Best for monochrome silhouettes (built-in templates).
+ *  - `'color'`: silhouette ink samples per-pixel from the source (clamped for
+ *    darkness). Best for colourful uploaded photos. */
+export type FilterMode = 'mono' | 'color';
+
 export interface RenderOptions {
   /** 0..60 — pixels of extra dithered canvas around the QR data area. */
   marginPx: number;
@@ -41,10 +48,9 @@ export interface RenderOptions {
    *  Values < 1 inset the silhouette toward the centre; the surrounding
    *  padding renders as a regular QR. Defaults to 1 (full canvas). */
   silhouetteScale?: number;
-  /** When true, the silhouette's "ink" sub-pixels carry the source's per-pixel
-   *  colour (clamped for darkness) instead of a single dominant tone.
-   *  Best with colourful uploaded photos. Defaults to false. */
-  colorHalftone?: boolean;
+  /** Halftone ink filter mode. Defaults to `'mono'` (preserves the previous
+   *  `colorHalftone: false` behaviour). */
+  filter?: FilterMode;
 }
 
 export const DEFAULT_PLACEHOLDER_URL = 'https://www.instagram.com/ntu_astro/';
