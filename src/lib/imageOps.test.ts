@@ -8,6 +8,7 @@ import {
   isOutsideSilhouette,
   clampLuminosity,
   blendAgainstWhite,
+  computeLoadDrawRect,
 } from './imageOps';
 
 // ---------------------------------------------------------------------------
@@ -147,6 +148,96 @@ describe('ditherFloydSteinberg', () => {
     for (let y = 0; y < h; y++) {
       expect(result[y * w + (w - 1)]).toBe(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeLoadDrawRect
+// ---------------------------------------------------------------------------
+
+describe('computeLoadDrawRect', () => {
+  it('square source, contain (default): fills the canvas with no offset', () => {
+    const r = computeLoadDrawRect(500, 500, 1000, false);
+    expect(r.sx).toBe(0);
+    expect(r.sy).toBe(0);
+    expect(r.sw).toBe(500);
+    expect(r.sh).toBe(500);
+    expect(r.dx).toBe(0);
+    expect(r.dy).toBe(0);
+    expect(r.dw).toBe(1000);
+    expect(r.dh).toBe(1000);
+  });
+
+  it('wide 2:1 source, contain: source drawn whole, vertical letterbox', () => {
+    const r = computeLoadDrawRect(1000, 500, 1000, false);
+    // Whole source rect.
+    expect(r.sx).toBe(0);
+    expect(r.sy).toBe(0);
+    expect(r.sw).toBe(1000);
+    expect(r.sh).toBe(500);
+    // Drawn full-width with vertical letterbox.
+    expect(r.dw).toBe(1000);
+    expect(r.dh).toBe(500);
+    expect(r.dx).toBe(0);
+    expect(r.dy).toBe(250);
+  });
+
+  it('tall 1:2 source, contain: source drawn whole, horizontal letterbox', () => {
+    const r = computeLoadDrawRect(500, 1000, 1000, false);
+    expect(r.sw).toBe(500);
+    expect(r.sh).toBe(1000);
+    expect(r.dw).toBe(500);
+    expect(r.dh).toBe(1000);
+    expect(r.dx).toBe(250);
+    expect(r.dy).toBe(0);
+  });
+
+  it('square source, crop: identical to contain (no crop happens)', () => {
+    const r = computeLoadDrawRect(500, 500, 1000, true);
+    expect(r.sx).toBe(0);
+    expect(r.sy).toBe(0);
+    expect(r.sw).toBe(500);
+    expect(r.sh).toBe(500);
+    expect(r.dw).toBe(1000);
+    expect(r.dh).toBe(1000);
+    expect(r.dx).toBe(0);
+    expect(r.dy).toBe(0);
+  });
+
+  it('wide 2:1 source, crop: centre-crops horizontally to a square', () => {
+    const r = computeLoadDrawRect(1000, 500, 1000, true);
+    expect(r.sw).toBe(500);
+    expect(r.sh).toBe(500);
+    expect(r.sx).toBe(250); // (1000 - 500) / 2
+    expect(r.sy).toBe(0);
+    // Cropped square fills the whole destination canvas.
+    expect(r.dx).toBe(0);
+    expect(r.dy).toBe(0);
+    expect(r.dw).toBe(1000);
+    expect(r.dh).toBe(1000);
+  });
+
+  it('tall 1:2 source, crop: centre-crops vertically to a square', () => {
+    const r = computeLoadDrawRect(500, 1000, 1000, true);
+    expect(r.sw).toBe(500);
+    expect(r.sh).toBe(500);
+    expect(r.sx).toBe(0);
+    expect(r.sy).toBe(250); // (1000 - 500) / 2
+    expect(r.dw).toBe(1000);
+    expect(r.dh).toBe(1000);
+  });
+
+  it('zero-dim source with crop=true falls back to contain math (defensive)', () => {
+    // Defensive: a malformed Image with width=0 would otherwise produce NaN
+    // src rects under the crop branch. The helper guards against this so
+    // callers see deterministic letterbox-style numbers (the resulting NaN
+    // dimensions from the contain branch are expected and propagate, but
+    // we don't want crop math to silently produce zero-size sx/sy/sw/sh
+    // that drawImage would then sample as a 0-pixel region).
+    const r = computeLoadDrawRect(0, 500, 1000, true);
+    // Falls through to the contain branch — sw/sh equal the bogus inputs.
+    expect(r.sw).toBe(0);
+    expect(r.sh).toBe(500);
   });
 });
 

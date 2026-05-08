@@ -4,7 +4,7 @@ This file gives an agent enough context to make non-obvious decisions in this re
 
 ## What this is
 
-A small client-only React app that turns a URL into a halftone-style QR code. Implementation follows Chu, Chang, Lee, Mitra 2013 ("Halftone QR Codes", SIGGRAPH Asia), with Phase-2 Sampling-Sim scoring per Zhang et al. 2021 ("ArtCoder", CVPR) and an optional qart.js-style composite render mode. Deployed as a Cloudflare Worker with static assets (SPA mode). No backend, no tracking, no auth — pure browser code.
+A small client-only React app that turns a URL into a custom QR code. Two render modes ship: **`'composite'`** (qart.js / Cox 2014 style — clean QR centre with the image as surround; **default** since 2026-05-08) and **`'halftone'`** (Chu, Chang, Lee, Mitra 2013, "Halftone QR Codes", SIGGRAPH Asia — image diffused across all modules). Both use Phase-2 Sampling-Sim scoring per Zhang et al. 2021 ("ArtCoder", CVPR). Deployed as a Cloudflare Worker with static assets (SPA mode). No backend, no tracking, no auth — pure browser code.
 
 ## Technology snapshot
 

@@ -210,9 +210,61 @@ export function ditherFloydSteinberg(rgba: ImageData): Uint8Array {
   return out;
 }
 
-/** Load an image from a URL or data URL into a centred 1024×1024 ImageData,
- *  preserving aspect ratio with transparent letterboxing. */
-export async function loadImageData(src: string): Promise<ImageData> {
+/** Pure geometry for `loadImageData`: returns the 9-arg `drawImage` rectangle
+ *  pair (source crop + destination paint) for a `srcW × srcH` image into a
+ *  `targetSide × targetSide` canvas.
+ *
+ *  - `cropToSquare === false` (default, "Original"): source is drawn whole,
+ *    centred with transparent letterboxing — preserves the entire user image
+ *    and lets the QR pipeline render gutter modules as regular QR squares.
+ *  - `cropToSquare === true` ("Square"): source is centre-cropped to its
+ *    largest centred square, then scaled to fill the canvas — no transparent
+ *    gutters, the silhouette covers the full QR area. */
+export function computeLoadDrawRect(
+  srcW: number,
+  srcH: number,
+  targetSide: number,
+  cropToSquare: boolean,
+): { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number } {
+  if (cropToSquare && srcW > 0 && srcH > 0) {
+    const cropSide = Math.min(srcW, srcH);
+    return {
+      sx: (srcW - cropSide) / 2,
+      sy: (srcH - cropSide) / 2,
+      sw: cropSide,
+      sh: cropSide,
+      dx: 0,
+      dy: 0,
+      dw: targetSide,
+      dh: targetSide,
+    };
+  }
+  const ratio = Math.min(targetSide / srcW, targetSide / srcH);
+  const w = srcW * ratio;
+  const h = srcH * ratio;
+  return {
+    sx: 0,
+    sy: 0,
+    sw: srcW,
+    sh: srcH,
+    dx: (targetSide - w) / 2,
+    dy: (targetSide - h) / 2,
+    dw: w,
+    dh: h,
+  };
+}
+
+/** Options for `loadImageData`. */
+export interface LoadImageOpts {
+  /** When true, centre-crop the source to a square that fills the 1024² canvas
+   *  instead of letterboxing. Defaults to false (preserve aspect ratio). */
+  cropToSquare?: boolean;
+}
+
+/** Load an image from a URL or data URL into a 1024×1024 ImageData. By default
+ *  preserves aspect ratio with transparent letterboxing; pass
+ *  `{ cropToSquare: true }` to centre-crop to a square that fills the canvas. */
+export async function loadImageData(src: string, opts: LoadImageOpts = {}): Promise<ImageData> {
   const img = new Image();
   img.crossOrigin = 'anonymous';
   await new Promise<void>((resolve, reject) => {
@@ -221,12 +273,9 @@ export async function loadImageData(src: string): Promise<ImageData> {
     img.src = src;
   });
   const canvas = document.createElement('canvas');
-  /** Square side (px) we rasterise every source illustration to before passing
-   *  it through the halftone pipeline. 1024² balances detail (sub-pixel
-   *  importance maps stay smooth) against memory and dither cost. Note this
-   *  is distinct from `MAX_DECODE_SIDE` in `decodeQrImage.ts`, which caps the
-   *  jsqr decode-input size — they happen to share a value but solve different
-   *  problems and should not be merged. */
+  // 1024² balances detail (sub-pixel importance maps stay smooth) against
+  // memory and dither cost. Distinct from `MAX_DECODE_SIDE` in
+  // `decodeQrImage.ts` — they share a value but solve different problems.
   const targetSide = 1024;
   canvas.width = targetSide;
   canvas.height = targetSide;
@@ -234,10 +283,8 @@ export async function loadImageData(src: string): Promise<ImageData> {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.clearRect(0, 0, targetSide, targetSide);
-  const ratio = Math.min(targetSide / img.width, targetSide / img.height);
-  const w = img.width * ratio;
-  const h = img.height * ratio;
-  ctx.drawImage(img, (targetSide - w) / 2, (targetSide - h) / 2, w, h);
+  const r = computeLoadDrawRect(img.width, img.height, targetSide, opts.cropToSquare === true);
+  ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, r.dx, r.dy, r.dw, r.dh);
   return ctx.getImageData(0, 0, targetSide, targetSide);
 }
 
