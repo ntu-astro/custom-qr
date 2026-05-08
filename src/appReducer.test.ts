@@ -64,6 +64,7 @@ const baseState: AppState = {
   multiSize: false,
   silhouetteScale: 1,
   renderMode: 'halftone',
+  filter: 'color',
 };
 
 describe('PERSIST_KEY', () => {
@@ -185,6 +186,24 @@ describe('reducer', () => {
     expect(next).not.toBe(stateWithCustom);
     expect(next.templateId).toBe('crux');
     expect(next.customSource).toBeNull();
+  });
+
+  it("SELECT_TEMPLATE — astronomy preset sets filter to 'mono'", () => {
+    const colorState: AppState = { ...baseState, filter: 'color' };
+    const next = reducer(colorState, { type: 'SELECT_TEMPLATE', id: 'orion' });
+    expect(next.filter).toBe('mono');
+  });
+
+  it("SELECT_TEMPLATE — art preset sets filter to 'color'", () => {
+    const monoState: AppState = { ...baseState, filter: 'mono' };
+    const next = reducer(monoState, { type: 'SELECT_TEMPLATE', id: 'van-gogh-the-starry-night' });
+    expect(next.filter).toBe('color');
+  });
+
+  it("SELECT_TEMPLATE — 'custom' sets filter to 'color'", () => {
+    const monoState: AppState = { ...baseState, filter: 'mono' };
+    const next = reducer(monoState, { type: 'SELECT_TEMPLATE', id: 'custom' });
+    expect(next.filter).toBe('color');
   });
 
   it("SELECT_TEMPLATE — to 'custom' KEEPS customSource (does not null it)", () => {

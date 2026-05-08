@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import type { AdvancedSettings } from '../appReducer';
-import type { RenderMode } from '../types';
+import type { FilterMode, RenderMode } from '../types';
 import { TemplatePicker } from './TemplatePicker';
 import { AdvancedOptions } from './AdvancedOptions';
 import { QrIcon } from './QrIcon';
@@ -29,6 +29,7 @@ export interface ControlsProps {
   multiSize: boolean;
   silhouetteScale: number;
   renderMode: RenderMode;
+  filter: FilterMode;
   onAdvancedChange: (patch: Partial<AdvancedSettings>) => void;
 
   onCustomUpload: (file: File) => void;
@@ -133,6 +134,7 @@ export function Controls(props: ControlsProps) {
             multiSize={props.multiSize}
             silhouetteScale={props.silhouetteScale}
             renderMode={props.renderMode}
+            filter={props.filter}
             onChange={props.onAdvancedChange}
           />
         </div>

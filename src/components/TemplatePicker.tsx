@@ -138,6 +138,7 @@ export function TemplatePicker({
   }
 
   const astronomyPresets = TEMPLATES.filter((t) => t.category === 'astronomy');
+  const artPresets = TEMPLATES.filter((t) => t.category === 'art');
 
   return (
     <div className="flex flex-col gap-4">
@@ -178,12 +179,15 @@ export function TemplatePicker({
       )}
 
       {activeTab === 'art' && (
-        <div
-          role="tabpanel"
-          aria-label="Art templates"
-          className="flex h-32 items-center justify-center rounded-card border border-dashed border-sandgray bg-fog text-sm text-olivegray"
-        >
-          Templates coming soon
+        <div role="tabpanel" aria-label="Art templates" className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {artPresets.map((p) => (
+            <Tile
+              key={p.id}
+              preset={p}
+              selected={selectedId === p.id}
+              onClick={() => onSelect(p.id)}
+            />
+          ))}
         </div>
       )}
 

@@ -1,14 +1,35 @@
 # Template assets
 
-Each file here is a halftone *source* for the QR generator. They are sampled per-pixel by the halftone renderer; the **alpha channel and luminance** decide where dots appear.
+Each file here is a *template source* for the QR generator. The renderer samples the **alpha channel and luminance** per-pixel — both render modes consume these files:
+
+- **Composite** (`composite`, default): the file appears as a clean image surround with a small QR centre. Silhouette boundary follows alpha + luminance.
+- **Halftone** (`halftone`, Chu et al. 2013): the file is dithered into per-module ink across the whole QR.
 
 ## Asset rules
-- Aspect ratio: square (1:1).
-- Background: transparent (PNG/SVG) or solid `#000` (renderer treats dark pixels as "draw a dot").
-- Subject: high-contrast silhouette. Avoid fine line art under ~3px — halftones smear it.
-- Resolution: SVG preferred (resolution-independent). PNG: 1024×1024 minimum, 2048×2048 ideal.
+
+- **Aspect ratio:** square (1:1). The composer and silhouette pipeline assume square sources.
+- **Background:** transparent (PNG/SVG/WebP with alpha) or solid `#000`. The renderer treats dark / opaque pixels as "draw a dot".
+- **Color space:** sRGB, 8-bit/channel.
+
+### Format by content type
+
+| Content | Format | Why |
+|---|---|---|
+| Silhouettes, wordmarks, line art (e.g. `ntuas`, constellations) | **SVG** preferred, **PNG-8** fallback | Resolution-independent; PNG-8 with alpha is tiny (<50 KB) for high-contrast art. |
+| Photographic / continuous-tone art (e.g. nebulae, planet imagery) | **WebP**, quality 85 | 50–70% smaller than PNG-24, no visible compression artifacts at our render resolution. Supports alpha. |
+| ❌ JPEG | **Never use** | 8×8 block artifacts get amplified by the halftone scoring stage (used by both render modes for mask selection) — visible faint grids in the final QR. |
+
+### Resolution
+
+- **SVG:** any (resolution-independent).
+- **Raster (PNG/WebP):** **1024×1024** is the recommended target.
+  - V5 needs ~296 px effective, V10 ~456 px, V15 ~616 px after the renderer's module-grid downsample. 1024 covers all of them with headroom.
+  - 768×768 is the minimum if file size matters.
+  - 2048×2048 is overkill — the render pipeline downsamples to module-grid × subpixels and discards the extra detail.
 
 ## Built-in templates
+
+### Astronomy
 
 | File | Source | Notes |
 |---|---|---|
@@ -18,6 +39,28 @@ Each file here is a halftone *source* for the QR generator. They are sampled per
 | `crux.svg` | hand-authored | constellation, 5-star Southern Cross |
 | `sagittarius-teapot.svg` | J2000 positions, sky-correct, Stellarium "western" lines (teapot subset) | 8 stars: lid (lambda-delta-phi), body, gamma spout (west), Nunki/Tau/Ascella handle (east) |
 | `ntuas.svg` | text-only, Archivo Black (Google Fonts, OFL), glyphs converted to paths | wordmark "NTUAS" centered in a 512×512 viewBox; halftones to a horizontal silhouette band |
+
+### Art
+
+Public-domain paintings used as template sources. Each accent color was picked to match the dominant tone of the piece (used as the halo around the QR safe zone in `composite` mode).
+
+| File | Painting | Painter | Accent |
+|---|---|---|---|
+| `van-gogh-the-starry-night.webp` | The Starry Night (1889) | Vincent van Gogh | `#1e3a8a` |
+| `hokusai-the-great-wave-off-kanagawa.webp` | The Great Wave off Kanagawa (c. 1831) | Katsushika Hokusai | `#1f3a5f` |
+| `vermeer-girl-with-a-pearl-earring.webp` | Girl with a Pearl Earring (c. 1665) | Johannes Vermeer | `#1d4a7a` |
+| `vermeer-the-astronomer.webp` | The Astronomer (1668) | Johannes Vermeer | `#c9924a` |
+| `monet-impression-sunrise.webp` | Impression, Sunrise (1872) | Claude Monet | `#e85d3a` |
+| `monet-water-lilies.webp` | Water Lilies (1916) | Claude Monet | `#5d7d4a` |
+| `monet-woman-with-a-parasol-madame-monet-and-her-son.webp` | Woman with a Parasol — Madame Monet and Her Son (1875) | Claude Monet | `#7895b3` |
+| `leonardo-da-vinci-the-last-supper.webp` | The Last Supper (c. 1495–1498) | Leonardo da Vinci | `#a87a4a` |
+| `raphael-the-school-of-athens.webp` | The School of Athens (1509–1511) | Raphael | `#9b6f3e` |
+| `rembrandt-the-night-watch.webp` | The Night Watch (1642) | Rembrandt | `#a87a3a` |
+| `eugene-delacroix-liberty-leading-the-people.webp` | Liberty Leading the People (1830) | Eugène Delacroix | `#a8281f` |
+| `canaletto-the-entrance-to-the-grand-canal-venice.webp` | The Entrance to the Grand Canal, Venice (c. 1730) | Canaletto | `#c9a96e` |
+| `caillebotte-young-man-at-his-window.webp` | Young Man at His Window (1875) | Gustave Caillebotte | `#5b6b76` |
+| `edgar-visit-to-a-museum.webp` | Visit to a Museum (c. 1879–1890) | Edgar Degas | `#8a6a44` |
+| `hopper-nighthawks.webp` | Nighthawks (1942) | Edward Hopper | `#d4a93a` |
 
 ## Re-generating club assets
 
