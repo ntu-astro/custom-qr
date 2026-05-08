@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ScanResult, FilterMode } from '../types';
+import type { ScanResult, FilterMode, RenderMode } from '../types';
 import { DEFAULT_PLACEHOLDER_URL } from '../types';
 import { findTemplate } from '../templates/presets';
 import type { CustomSource } from '../appReducer';
@@ -8,6 +8,9 @@ import { computeHalftoneTarget } from '../lib/halftoneTarget';
 import { pickBestMask } from '../lib/maskOptimizer';
 import { flipModulesByCodeword } from '../lib/moduleFlipper';
 import { render as renderHalftone } from '../lib/halftoneRenderer';
+import { render as renderComposite } from '../lib/compositeRenderer';
+import { buildPredictedCanvas } from '../lib/predictedCanvas';
+import { buildSamplingContext } from '../lib/samplingSim';
 import { verify } from '../lib/scanVerifier';
 import { loadImageData } from '../lib/imageOps';
 
@@ -15,6 +18,7 @@ import { loadImageData } from '../lib/imageOps';
 // whole output. Phone scanners may struggle with halftone QRs that lack a
 // quiet zone; the printed copy should be tested on a real phone.
 const CANVAS_MARGIN_PX = 0;
+const CELL_PX = 18;
 
 export interface QrPipelineInput {
   url: string;
@@ -23,6 +27,7 @@ export interface QrPipelineInput {
   silhouetteScale: number;
   multiSize: boolean;
   filter: FilterMode;
+  renderMode: RenderMode;
 }
 
 export interface QrPipelineState {
@@ -47,7 +52,7 @@ export interface QrPipelineState {
  *  source (e.g. upload validation) and is responsible for merging them at the
  *  display layer. */
 export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
-  const { url, templateId, customSource, silhouetteScale, multiSize, filter } = input;
+  const { url, templateId, customSource, silhouetteScale, multiSize, filter, renderMode } = input;
 
   const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
@@ -72,24 +77,54 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
             : findTemplate(templateId).sourcePath;
         const imageData = await loadImageData(sourcePath);
 
-        // Stage 2: pick the QR mask whose post-mask bit pattern best matches
-        // the dithered silhouette, weighted by per-module importance.
+        // Stage 2 prep: dithered halftone target (per-module dark/light vote
+        // + importance weights). Used by both mask selection and flip scoring.
         const halftoneTarget = computeHalftoneTarget(
           imageData,
           baseMatrix.size,
           baseMatrix.reserved,
           silhouetteScale,
         );
-        const { best } = pickBestMask(resolvedUrl, halftoneTarget);
+
+        // Stage 2 prep: build the predicted subpixel canvas once. Mask
+        // selection and flip scoring both need it. Flips below mutate only
+        // data-module bits (not reserved-cell topology), so this canvas is
+        // valid throughout — the renderer's reservedChecksum assertion guards
+        // the invariant in dev builds.
+        const marginCells = Math.max(0, Math.round(CANVAS_MARGIN_PX / CELL_PX));
+        const predicted = buildPredictedCanvas(
+          imageData,
+          baseMatrix,
+          marginCells,
+          silhouetteScale,
+          renderMode,
+          filter,
+        );
+
+        // Stage 2: pick the QR mask whose post-mask bit pattern best matches
+        // the dithered silhouette under the Sampling-Sim metric (Phase 2).
+        const { best } = pickBestMask(resolvedUrl, halftoneTarget, predicted);
 
         // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
-        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
-
-        const qr = renderHalftone(matrix, imageData, {
-          marginPx: CANVAS_MARGIN_PX,
-          silhouetteScale,
-          filter,
+        // The sampling context is built for the post-mask matrix and shared
+        // with the flipper so its incremental readback updates are reused.
+        const samplingContext = buildSamplingContext(predicted, best.matrix);
+        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget, {
+          samplingContext,
         });
+
+        // Stage 4: dispatch on render mode.
+        const qr = renderMode === 'composite'
+          ? renderComposite(matrix, predicted, {
+              marginPx: CANVAS_MARGIN_PX,
+              silhouetteScale,
+              filter,
+            })
+          : renderHalftone(matrix, predicted, imageData, {
+              marginPx: CANVAS_MARGIN_PX,
+              silhouetteScale,
+              filter,
+            });
 
         const sizes = multiSize ? [qr.width, 200] : [qr.width];
         const results = verify(qr, sizes);
@@ -118,7 +153,7 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
     return () => {
       cancelled = true;
     };
-  }, [url, templateId, customSource, silhouetteScale, multiSize, filter]);
+  }, [url, templateId, customSource, silhouetteScale, multiSize, filter, renderMode]);
 
   return { qrCanvas, scanResults, isRendering, pipelineError };
 }

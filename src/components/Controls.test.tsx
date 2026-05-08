@@ -34,6 +34,7 @@ function renderControls(
       onCaptionChange={callbacks.onCaptionChange ?? vi.fn()}
       multiSize={overrides.multiSize ?? false}
       silhouetteScale={overrides.silhouetteScale ?? 1}
+      renderMode="halftone"
       onAdvancedChange={callbacks.onAdvancedChange ?? vi.fn()}
       onCustomUpload={callbacks.onCustomUpload ?? vi.fn()}
       onDecodeQrUpload={callbacks.onDecodeQrUpload ?? vi.fn()}

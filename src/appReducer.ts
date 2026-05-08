@@ -1,4 +1,4 @@
-import type { PosterSize } from './types';
+import type { PosterSize, RenderMode } from './types';
 import { DEFAULT_TEMPLATE_ID } from './templates/presets';
 
 export interface CustomSource {
@@ -10,6 +10,8 @@ export interface AdvancedSettings {
   multiSize: boolean;
   /** 0.3..1 — fraction of the QR canvas covered by the silhouette. */
   silhouetteScale: number;
+  /** 'halftone' (default, Chu et al. 2013) | 'composite' (qart.js-style). */
+  renderMode: RenderMode;
 }
 
 export interface AppState extends AdvancedSettings {
@@ -37,6 +39,7 @@ const DEFAULT_STATE: AppState = {
   posterSize: { kind: 'igPost', width: 1080, height: 1080 },
   multiSize: false,
   silhouetteScale: 1,
+  renderMode: 'halftone',
 };
 
 /** Versioned localStorage key. Bump the suffix to invalidate persisted state. */

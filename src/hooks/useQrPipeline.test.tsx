@@ -59,6 +59,29 @@ vi.mock('../lib/halftoneRenderer', () => {
   };
 });
 
+vi.mock('../lib/compositeRenderer', () => {
+  return {
+    render: vi.fn(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 100;
+      canvas.height = 100;
+      return canvas;
+    }),
+  };
+});
+
+vi.mock('../lib/predictedCanvas', () => ({
+  buildPredictedCanvas: vi.fn(() => ({
+    data: new ImageData(63, 63),
+    width: 63,
+    height: 63,
+    cellPx: 18,
+    marginCells: 0,
+    reservedChecksum: 0,
+    raster: new ImageData(63, 63),
+  })),
+}));
+
 vi.mock('../lib/scanVerifier', () => ({
   verify: vi.fn((_canvas: HTMLCanvasElement, sizes: number[]) =>
     sizes.map((s) => ({ ok: true, size: s, decoded: 'mock-decoded' })),
@@ -77,6 +100,7 @@ const baseInput: QrPipelineInput = {
   silhouetteScale: 1,
   multiSize: false,
   filter: 'mono',
+  renderMode: 'halftone',
 };
 
 beforeEach(() => {

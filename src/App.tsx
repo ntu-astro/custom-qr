@@ -29,7 +29,16 @@ export default function App() {
   // on a sub-slice (see useQrPipeline) — caption / posterSize must NOT live in
   // its dep array, otherwise typing in the caption would re-run mask
   // optimisation. The poster compositor below uses the rest.
-  const { url, templateId, customSource, silhouetteScale, multiSize, caption, posterSize } = state;
+  const {
+    url,
+    templateId,
+    customSource,
+    silhouetteScale,
+    multiSize,
+    caption,
+    posterSize,
+    renderMode,
+  } = state;
 
   // Custom uploads are assumed to be colour photos; built-in templates are
   // pure-black silhouettes where the colour filter has no effect.
@@ -42,6 +51,7 @@ export default function App() {
     silhouetteScale,
     multiSize,
     filter,
+    renderMode,
   });
 
   // Persist a tiny slice of state across reloads. Intentionally excludes
@@ -131,6 +141,7 @@ export default function App() {
           onCaptionChange={(v) => dispatch({ type: 'SET_CAPTION', value: v })}
           multiSize={state.multiSize}
           silhouetteScale={state.silhouetteScale}
+          renderMode={state.renderMode}
           onAdvancedChange={(patch) => dispatch({ type: 'PATCH_ADVANCED', patch })}
           onCustomUpload={handleCustomUpload}
           onDecodeQrUpload={handleDecodeQrUpload}
