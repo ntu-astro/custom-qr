@@ -11,7 +11,7 @@
  *                         exclusion) with the source's alpha coverage at that
  *                         module's centre. */
 
-import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
+import { rasterizeSource, ditherFloydSteinberg, blendAgainstWhite } from './imageOps';
 
 export interface HalftoneTarget {
   size: number;
@@ -36,14 +36,16 @@ export function computeHalftoneTarget(
   silhouetteScale: number = 1,
 ): HalftoneTarget {
   // The dither pass is the canonical signal of "where the source wants ink".
-  // We rasterise onto a transparent canvas (the dither blends transparent
-  // against white internally), then derive both the per-module target AND its
-  // importance weight from the dithered bitmap: dark modules of the target
-  // carry full weight (1.0) because that's the silhouette; light modules drop
-  // to the floor. Reserved modules are excluded (importance 0) so the
-  // optimiser never tries to flip them.
+  // We rasterise onto a transparent canvas, blend against white (so transparent
+  // letterbox pixels read as luma 255 rather than 0 — without this, silhouettes
+  // smaller than the canvas at silhouetteScale < 1 would invert the target),
+  // then derive both the per-module target AND its importance weight from the
+  // dithered bitmap: dark modules of the target carry full weight (1.0) because
+  // that's the silhouette; light modules drop to the floor. Reserved modules
+  // are excluded (importance 0) so the optimiser never tries to flip them.
   const rasterised = rasterizeSource(source, size, silhouetteScale);
-  const binary = ditherFloydSteinberg(rasterised);
+  const blended = blendAgainstWhite(rasterised);
+  const binary = ditherFloydSteinberg(blended);
 
   const target: boolean[][] = [];
   const importance: number[][] = [];

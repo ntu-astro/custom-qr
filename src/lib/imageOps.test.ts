@@ -4,6 +4,10 @@ import {
   ditherFloydSteinberg,
   loadImageData,
   readFileAsDataUrl,
+  liftMarginBrightness,
+  isOutsideSilhouette,
+  clampLuminosity,
+  blendAgainstWhite,
 } from './imageOps';
 
 // ---------------------------------------------------------------------------
@@ -217,5 +221,114 @@ describe('readFileAsDataUrl', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// blendAgainstWhite
+// ---------------------------------------------------------------------------
+
+describe('blendAgainstWhite', () => {
+  it('fully opaque source returns identical RGB and alpha 255', () => {
+    const input = makeImageData(2, 2, () => [50, 100, 150, 255]);
+    const out = blendAgainstWhite(input);
+    expect(out.data[0]).toBe(50);
+    expect(out.data[1]).toBe(100);
+    expect(out.data[2]).toBe(150);
+    expect(out.data[3]).toBe(255);
+  });
+
+  it('fully transparent source returns pure white', () => {
+    const input = makeImageData(2, 2, () => [0, 0, 0, 0]);
+    const out = blendAgainstWhite(input);
+    expect(out.data[0]).toBe(255);
+    expect(out.data[1]).toBe(255);
+    expect(out.data[2]).toBe(255);
+    expect(out.data[3]).toBe(255);
+  });
+
+  it('50% alpha interpolates 50/50 against white', () => {
+    const input = makeImageData(2, 2, () => [0, 0, 0, 128]);
+    const out = blendAgainstWhite(input);
+    // 0 * (128/255) + 255 * (1 - 128/255) ≈ 127.5 → 128
+    expect(out.data[0]).toBeGreaterThanOrEqual(127);
+    expect(out.data[0]).toBeLessThanOrEqual(128);
+    expect(out.data[3]).toBe(255);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// liftMarginBrightness
+// ---------------------------------------------------------------------------
+
+describe('liftMarginBrightness', () => {
+  it('marginCells=0 returns a copy with identical bytes', () => {
+    const input = makeImageData(9, 9, () => [50, 50, 50, 255]);
+    const out = liftMarginBrightness(input, 0, 3);
+    expect(Array.from(out.data)).toEqual(Array.from(input.data));
+    // It should be a copy, not the same reference.
+    expect(out).not.toBe(input);
+  });
+
+  it('matrix-region pixels stay at original luma; margin pixels lift toward white', () => {
+    // 5x5 canvas with marginCells=1 and matrixCells=1 means subgrid is 3x3.
+    // marginSub = 3, matrixSub region = [3, 6), but width is 9 = 3*3 (marginCells=1
+    // implies marginSub=3, so total = 3 + 3 + 3 = 9).
+    const w = 9, h = 9;
+    const input = makeImageData(w, h, () => [0, 0, 0, 255]);
+    const out = liftMarginBrightness(input, 1, 1);
+    // Centre subpixel of the matrix region (4, 4) is unchanged.
+    const centreIdx = (4 * w + 4) * 4;
+    expect(out.data[centreIdx]).toBe(0);
+    // Outermost ring (e.g. (0, 0)) is heavily lifted toward white.
+    const cornerIdx = 0;
+    expect(out.data[cornerIdx]).toBeGreaterThan(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isOutsideSilhouette
+// ---------------------------------------------------------------------------
+
+describe('isOutsideSilhouette', () => {
+  it('fully transparent pixel returns true', () => {
+    const data = new Uint8ClampedArray([0, 0, 0, 0]);
+    expect(isOutsideSilhouette(data, 0)).toBe(true);
+  });
+
+  it('fully opaque dark pixel returns false', () => {
+    const data = new Uint8ClampedArray([20, 20, 20, 255]);
+    expect(isOutsideSilhouette(data, 0)).toBe(false);
+  });
+
+  it('opaque white pixel returns true (above SILHOUETTE_MAX_LUM)', () => {
+    const data = new Uint8ClampedArray([255, 255, 255, 255]);
+    expect(isOutsideSilhouette(data, 0)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// clampLuminosity
+// ---------------------------------------------------------------------------
+
+describe('clampLuminosity', () => {
+  it('pixel below maxBrightness is unchanged', () => {
+    const out = clampLuminosity(20, 20, 20, 0.45);
+    expect(out).toEqual({ r: 20, g: 20, b: 20 });
+  });
+
+  it('pixel above maxBrightness is scaled down proportionally', () => {
+    const out = clampLuminosity(255, 255, 255, 0.45);
+    // After clamping, the result should have luma <= 0.45 * 255 ≈ 115.
+    const lum = (out.r + out.g + out.b) / 3;
+    expect(lum).toBeLessThanOrEqual(120);
+  });
+
+  it('preserves colour ratios when clamping', () => {
+    const out = clampLuminosity(200, 100, 50, 0.3);
+    // Ratios r:g:b should stay close to 4:2:1 (the input ratios).
+    const total = out.r + out.g + out.b;
+    expect(out.r / total).toBeCloseTo(200 / 350, 1);
+    expect(out.g / total).toBeCloseTo(100 / 350, 1);
   });
 });

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { render } from './halftoneRenderer';
+import { buildPredictedCanvas } from './predictedCanvas';
 import { buildMatrix } from './qrMatrix';
 import { toLuminance } from './colorUtils';
+import type { QRMatrix, FilterMode, RenderOptions } from '../types';
+
+const CELL_PX = 18;
 
 function blackImageData(w: number, h: number): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -17,6 +21,25 @@ function whiteImageData(w: number, h: number): ImageData {
     data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 0;
   }
   return new ImageData(data, w, h);
+}
+
+/** Convenience wrapper: build the predicted canvas + render in one shot. */
+function renderFromSource(
+  matrix: QRMatrix,
+  source: ImageData,
+  opts: RenderOptions,
+): HTMLCanvasElement {
+  const marginCells = Math.max(0, Math.round(opts.marginPx / CELL_PX));
+  const filter: FilterMode = opts.filter ?? 'mono';
+  const predicted = buildPredictedCanvas(
+    source,
+    matrix,
+    marginCells,
+    opts.silhouetteScale ?? 1,
+    'halftone',
+    filter,
+  );
+  return render(matrix, predicted, source, opts);
 }
 
 /** Composite the (transparent-output) QR canvas over white, since the renderer
@@ -37,13 +60,13 @@ describe('render', () => {
   const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
 
   it('produces a square canvas sized for the matrix plus margin', () => {
-    const canvas = render(matrix, blackImageData(512, 512), { marginPx: 32 });
+    const canvas = renderFromSource(matrix, blackImageData(512, 512), { marginPx: 32 });
     expect(canvas.width).toBe(canvas.height);
     expect(canvas.width).toBeGreaterThanOrEqual(matrix.size + 2 * 4);
   });
 
   it('preserves dark data modules: a known dark module pixel is dark', () => {
-    const canvas = render(matrix, whiteImageData(512, 512), { marginPx: 0 });
+    const canvas = renderFromSource(matrix, whiteImageData(512, 512), { marginPx: 0 });
     const ctx = canvas.getContext('2d')!;
     const cellPx = canvas.width / matrix.size;
     const cx = Math.floor(cellPx * 0.5);
@@ -57,7 +80,7 @@ describe('render', () => {
   it('leaves the canvas margin transparent under a fully-light source', () => {
     // Margin is part of the dithered illustration (Chu et al. full-canvas halftone).
     // An all-white source dithers to all-white, so margin sub-pixels never get inked.
-    const canvas = render(matrix, whiteImageData(512, 512), { marginPx: 16 });
+    const canvas = renderFromSource(matrix, whiteImageData(512, 512), { marginPx: 16 });
     const ctx = canvas.getContext('2d')!;
     const px = ctx.getImageData(2, 2, 1, 1).data;
     expect(px[3]).toBe(0);
@@ -75,7 +98,7 @@ describe('render — reserved-cell suppression', () => {
     expect(matrix.reserved[3 * matrix.size + 1]).toBe(1);
     expect(matrix.modules[3][1]).toBe(false);
 
-    const canvas = render(matrix, blackImageData(256, 256), { marginPx: 0 });
+    const canvas = renderFromSource(matrix, blackImageData(256, 256), { marginPx: 0 });
     const ctx = canvas.getContext('2d')!;
     const cellPx = canvas.width / matrix.size;
     const cx = Math.floor(cellPx * 1.5);
@@ -111,7 +134,7 @@ describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
   }
 
   it('shows the silhouette in 8/9 sub-pixels of non-reserved data-light cells', () => {
-    const canvas = render(matrix, blackImageData(256, 256), { marginPx: 0 });
+    const canvas = renderFromSource(matrix, blackImageData(256, 256), { marginPx: 0 });
     const flat = flattenOnWhite(canvas);
     const ctx = flat.getContext('2d')!;
     const cellPx = flat.width / matrix.size;
@@ -131,7 +154,7 @@ describe('render — sub-pixel halftone (Chu et al. 2013)', () => {
   });
 
   it('keeps the QR centre stamp dark in non-reserved data-dark cells under a bright source', () => {
-    const canvas = render(matrix, whiteImageData(256, 256), { marginPx: 0 });
+    const canvas = renderFromSource(matrix, whiteImageData(256, 256), { marginPx: 0 });
     const ctx = canvas.getContext('2d')!;
     const cellPx = canvas.width / matrix.size;
     const subPx = cellPx / 3;
@@ -149,7 +172,7 @@ describe('render — scan survival', () => {
 
   it('decodes via jsqr (light source)', async () => {
     const { verify } = await import('./scanVerifier');
-    const canvas = render(matrix, whiteImageData(256, 256), { marginPx: 32 });
+    const canvas = renderFromSource(matrix, whiteImageData(256, 256), { marginPx: 32 });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
     expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
@@ -157,7 +180,7 @@ describe('render — scan survival', () => {
 
   it('decodes via jsqr (dark source — silhouette stress)', async () => {
     const { verify } = await import('./scanVerifier');
-    const canvas = render(matrix, blackImageData(256, 256), { marginPx: 32 });
+    const canvas = renderFromSource(matrix, blackImageData(256, 256), { marginPx: 32 });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
     expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
@@ -179,7 +202,7 @@ describe('render — color halftone', () => {
     // Bright red source — single-ink mode would tint with the dominant clamped
     // tone; colour halftone keeps the per-pixel red, just darkened enough for
     // contrast.
-    const canvas = render(matrix, colorImageData(256, 256, 220, 40, 40), {
+    const canvas = renderFromSource(matrix, colorImageData(256, 256, 220, 40, 40), {
       marginPx: 0,
       filter: 'color',
     });
@@ -209,12 +232,57 @@ describe('render — color halftone', () => {
 
   it('still decodes via jsqr in colour mode', async () => {
     const { verify } = await import('./scanVerifier');
-    const canvas = render(matrix, colorImageData(256, 256, 220, 40, 40), {
+    const canvas = renderFromSource(matrix, colorImageData(256, 256, 220, 40, 40), {
       marginPx: 32,
       filter: 'color',
     });
     const results = verify(canvas, [canvas.width]);
     expect(results[0].ok).toBe(true);
     expect(results[0].decoded).toBe('https://www.instagram.com/ntu_astro/');
+  });
+});
+
+describe('render — lifecycle invariant: predicted-canvas reuse across data-module flips', () => {
+  // Spec § PR 2 lifecycle decision B: a PredictedCanvas built from M0 must
+  // produce identical paint output to one built from M1 when M1 differs from
+  // M0 only in data-module bits (never reserved-cell bits).
+  it('paint(M1, predicted-built-from-M0) == paint(M1, predicted-built-from-M1) when flips touch only data modules', () => {
+    const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
+
+    // Find 20 non-reserved data modules to flip.
+    const flips: Array<[number, number]> = [];
+    for (let my = 0; my < matrix.size && flips.length < 20; my++) {
+      for (let mx = 0; mx < matrix.size && flips.length < 20; mx++) {
+        if (matrix.reserved[my * matrix.size + mx] === 0) {
+          flips.push([mx, my]);
+        }
+      }
+    }
+
+    // Clone helper.
+    const cloneMatrix = (m: typeof matrix) => ({
+      size: m.size,
+      reserved: new Uint8Array(m.reserved),
+      modules: m.modules.map((row) => row.slice()),
+    });
+
+    const M0 = cloneMatrix(matrix);
+    const M1 = cloneMatrix(matrix);
+    for (const [mx, my] of flips) {
+      M1.modules[my][mx] = !M1.modules[my][mx];
+    }
+
+    const source = whiteImageData(256, 256);
+    const opts = { marginPx: 0, silhouetteScale: 1, filter: 'mono' as FilterMode };
+
+    // Path A: build canvas pre-flip, paint with post-flip matrix.
+    const predicted0 = buildPredictedCanvas(source, M0, 0, 1, 'halftone', 'mono');
+    const canvasA = render(M1, predicted0, source, opts);
+
+    // Path B: build canvas post-flip, paint with post-flip matrix.
+    const predicted1 = buildPredictedCanvas(source, M1, 0, 1, 'halftone', 'mono');
+    const canvasB = render(M1, predicted1, source, opts);
+
+    expect(canvasA.toDataURL()).toBe(canvasB.toDataURL());
   });
 });

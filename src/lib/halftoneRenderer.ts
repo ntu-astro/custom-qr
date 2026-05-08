@@ -1,5 +1,15 @@
 import type { QRMatrix, RenderOptions, FilterMode } from '../types';
-import { rasterizeSource, ditherFloydSteinberg } from './imageOps';
+import {
+  isOutsideSilhouette,
+  clampLuminosity,
+  STRUCTURAL_INK,
+  STRUCTURAL_INK_HEX,
+  STRUCTURAL_INK_RGB,
+  MAX_INK_LUM,
+  DARK_PIXEL_LUMA_CUTOFF,
+} from './imageOps';
+import type { PredictedCanvas } from './predictedCanvas';
+import { computeReservedChecksum } from './predictedCanvas';
 import { toLuminance } from './colorUtils';
 
 // 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
@@ -8,24 +18,12 @@ import { toLuminance } from './colorUtils';
 // margin around the QR data area), then stamp the centre 1/9 sub-pixel of each module
 // with the QR bit. A graduated brightness lift in the margin band keeps the outermost
 // ring near-white so jsqr-style decoders can still lock onto the finder patterns.
-const CELL_PX = 18;
-
-/** Luma (0..255) above which a source pixel is considered too bright to
- *  contribute to the dominant ink-colour average. Empirically tuned. */
-const DARK_PIXEL_LUMA_CUTOFF = 200;
 
 interface InkColor { r: number; g: number; b: number }
 
-function clampLuminosity(r: number, g: number, b: number, maxBrightness = 0.45) {
-  const lum = toLuminance(r, g, b) / 255;
-  if (lum <= maxBrightness) return { r, g, b };
-  const k = maxBrightness / Math.max(lum, 1e-6);
-  return {
-    r: Math.round(r * k),
-    g: Math.round(g * k),
-    b: Math.round(b * k),
-  };
-}
+// Re-export STRUCTURAL_INK_HEX for the poster compositor and any external
+// consumers that imported it from this module historically.
+export { STRUCTURAL_INK_HEX };
 
 /** Pick a dominant non-background "ink" colour out of the source so the silhouette
  *  can be tinted. Falls back to plum-black for plain monochrome silhouettes or
@@ -85,55 +83,6 @@ function eachCell(
   }
 }
 
-/** Maximum fraction of original darkness retained at the inner edge of the
- *  margin (immediately adjacent to the QR data area). The factor falls off
- *  linearly to 0 at the canvas edge — so the outermost ring is essentially
- *  white, which protects finder-pattern detection in lenient decoders, while
- *  still allowing the silhouette to echo softly outward from the QR. */
-const MARGIN_INNER_INK_FACTOR = 0.25;
-
-/** Return a copy of `rasterised` with margin sub-pixels graduated toward white.
- *  Sub-pixels at the matrix boundary keep MARGIN_INNER_INK_FACTOR of their ink;
- *  density tapers linearly to 0 at the canvas edge. Channels are alpha-blended
- *  against white first so transparent sources behave the same as white sources. */
-function liftMarginBrightness(rasterised: ImageData, marginCells: number, matrixCells: number): ImageData {
-  const out = new ImageData(rasterised.width, rasterised.height);
-  out.data.set(rasterised.data);
-  if (marginCells <= 0) return out;
-  const marginSub = marginCells * 3;
-  const matrixSubStart = marginSub;
-  const matrixSubEnd = matrixSubStart + matrixCells * 3;
-  const w = out.width;
-  const h = out.height;
-  for (let y = 0; y < h; y++) {
-    const dy = y < matrixSubStart ? matrixSubStart - 1 - y
-             : y >= matrixSubEnd ? y - matrixSubEnd
-             : -1;
-    for (let x = 0; x < w; x++) {
-      const dx = x < matrixSubStart ? matrixSubStart - 1 - x
-               : x >= matrixSubEnd ? x - matrixSubEnd
-               : -1;
-      if (dx < 0 && dy < 0) continue;
-      const d = Math.max(dx, dy);
-      const factor = MARGIN_INNER_INK_FACTOR * (1 - d / marginSub);
-      const j = (y * w + x) * 4;
-      const a = out.data[j + 3] / 255;
-      for (let c = 0; c < 3; c++) {
-        const blended = out.data[j + c] * a + 255 * (1 - a);
-        out.data[j + c] = Math.round(255 - (255 - blended) * factor);
-      }
-      out.data[j + 3] = 255;
-    }
-  }
-  return out;
-}
-
-/** When the user enables "color halftone", each ink sub-pixel keeps the source
- *  colour at that position rather than collapsing to a single dominant tone.
- *  Sub-pixel colours are clamped so their luminance stays under MAX_INK_LUM —
- *  jsqr only locks on if dark modules read clearly darker than light modules. */
-const MAX_INK_LUM = 0.45;
-
 function readPixel(data: Uint8ClampedArray, idx4: number): { r: number; g: number; b: number } {
   const a = data[idx4 + 3] / 255;
   return {
@@ -143,48 +92,20 @@ function readPixel(data: Uint8ClampedArray, idx4: number): { r: number; g: numbe
   };
 }
 
-/** A source sub-pixel is treated as "outside the silhouette" when it is either
- *  largely transparent (PNG/SVG) or near-white (JPEG/photo with white
- *  background). In both cases colour halftoning falls back to the structural
- *  ink so the QR's dark-module stamps stay pure dark instead of fading toward
- *  whatever neutral the photo's background happens to be. */
-const SILHOUETTE_ALPHA_THRESHOLD = 0.4;
-const SILHOUETTE_MAX_LUM = 0.85;
-
-/** Plum-black used for finders, timing, alignment, and any QR data stamps that
- *  fall outside the silhouette while colour halftone is on. Picking the
- *  dominant photo tint there would tint the corner squares (e.g. bronze for a
- *  rainbow photo) and hurt finder-pattern detection. */
-const STRUCTURAL_INK: InkColor = { r: 33, g: 25, b: 34 };
-export const STRUCTURAL_INK_HEX = '#211922';
-const STRUCTURAL_INK_RGB = `rgb(${STRUCTURAL_INK.r},${STRUCTURAL_INK.g},${STRUCTURAL_INK.b})`;
-
-function isOutsideSilhouette(data: Uint8ClampedArray, idx4: number): boolean {
-  const a = data[idx4 + 3] / 255;
-  if (a < SILHOUETTE_ALPHA_THRESHOLD) return true;
-  const r = data[idx4] * a + 255 * (1 - a);
-  const g = data[idx4 + 1] * a + 255 * (1 - a);
-  const b = data[idx4 + 2] * a + 255 * (1 - a);
-  const lum = toLuminance(r, g, b) / 255;
-  return lum > SILHOUETTE_MAX_LUM;
-}
-
-function renderHalftone(
+function paintHalftone(
   ctx: CanvasRenderingContext2D,
   matrix: QRMatrix,
+  predicted: PredictedCanvas,
   source: ImageData,
-  marginCells: number,
-  cellPx: number,
-  silhouetteScale: number,
   filter: FilterMode,
 ) {
+  const { cellPx, marginCells, width: canvasSubSize } = predicted;
   const subPx = cellPx / 3;
   const totalCells = matrix.size + 2 * marginCells;
-  const canvasSubSize = totalCells * 3;
 
-  const rasterised = rasterizeSource(source, canvasSubSize, silhouetteScale);
-  const lifted = liftMarginBrightness(rasterised, marginCells, matrix.size);
-  const binary = ditherFloydSteinberg(lifted);
+  // The dithered subpixel canvas is the predicted state of every subpixel
+  // (including margin and surround). Renderer overrides the centre subpixel
+  // of each data module using the matrix value below.
   // Silhouette ink: tinted by the dominant photo tone for monochrome mode, or
   // pure plum-black for colour halftone (so the colour effect lives only inside
   // the silhouette, never in finders/timing/data-dot stamps).
@@ -193,22 +114,25 @@ function renderHalftone(
     ? STRUCTURAL_INK_RGB
     : `rgb(${silhouetteInk.r},${silhouetteInk.g},${silhouetteInk.b})`;
 
+  // Convert the binary halftone canvas into the coloured subpixel canvas the
+  // renderer actually paints. predicted.data carries values 0/255 per pixel;
+  // dark pixels become silhouette ink (per-pixel colour in 'color' mode,
+  // single tone in 'mono' mode), light pixels are transparent.
   const colored = new ImageData(canvasSubSize, canvasSubSize);
-  for (let i = 0; i < binary.length; i++) {
-    const j = i * 4;
-    if (binary[i] !== 0) continue;
-    if (filter === 'color' && !isOutsideSilhouette(rasterised.data, j)) {
-      const px = readPixel(lifted.data, j);
+  for (let i = 0; i < predicted.data.data.length; i += 4) {
+    if (predicted.data.data[i] !== 0) continue;
+    if (filter === 'color' && !isOutsideSilhouette(predicted.raster.data, i)) {
+      const px = readPixel(predicted.raster.data, i);
       const { r, g, b } = clampLuminosity(px.r, px.g, px.b, MAX_INK_LUM);
-      colored.data[j] = r;
-      colored.data[j + 1] = g;
-      colored.data[j + 2] = b;
+      colored.data[i] = r;
+      colored.data[i + 1] = g;
+      colored.data[i + 2] = b;
     } else {
-      colored.data[j] = silhouetteInk.r;
-      colored.data[j + 1] = silhouetteInk.g;
-      colored.data[j + 2] = silhouetteInk.b;
+      colored.data[i] = silhouetteInk.r;
+      colored.data[i + 1] = silhouetteInk.g;
+      colored.data[i + 2] = silhouetteInk.b;
     }
-    colored.data[j + 3] = 255;
+    colored.data[i + 3] = 255;
   }
   const tmp = document.createElement('canvas');
   tmp.width = canvasSubSize;
@@ -227,8 +151,8 @@ function renderHalftone(
     const sx = (mx + marginCells) * 3 + 1;
     const sy = (my + marginCells) * 3 + 1;
     const j = (sy * canvasSubSize + sx) * 4;
-    if (isOutsideSilhouette(rasterised.data, j)) return STRUCTURAL_INK_RGB;
-    const px = readPixel(lifted.data, j);
+    if (isOutsideSilhouette(predicted.raster.data, j)) return STRUCTURAL_INK_RGB;
+    const px = readPixel(predicted.raster.data, j);
     const { r, g, b } = clampLuminosity(px.r, px.g, px.b, MAX_INK_LUM);
     return `rgb(${r},${g},${b})`;
   };
@@ -257,10 +181,26 @@ function renderHalftone(
   });
 }
 
-export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions): HTMLCanvasElement {
-  const cellPx = CELL_PX;
-  const marginCells = Math.max(0, Math.round(opts.marginPx / cellPx));
-  const totalCells = matrix.size + 2 * marginCells;
+export function render(
+  matrix: QRMatrix,
+  predicted: PredictedCanvas,
+  source: ImageData,
+  opts: RenderOptions,
+): HTMLCanvasElement {
+  if (import.meta.env?.DEV) {
+    const expected = computeReservedChecksum(matrix.reserved);
+    if (expected !== predicted.reservedChecksum) {
+      throw new Error(
+        `halftoneRenderer: predicted canvas reservedChecksum mismatch ` +
+        `(expected ${expected}, got ${predicted.reservedChecksum}). ` +
+        `The matrix.reserved mask changed after buildPredictedCanvas — flips ` +
+        `must touch only data modules.`,
+      );
+    }
+  }
+
+  const cellPx = predicted.cellPx;
+  const totalCells = matrix.size + 2 * predicted.marginCells;
   const sizePx = totalCells * cellPx;
 
   const canvas = document.createElement('canvas');
@@ -270,14 +210,6 @@ export function render(matrix: QRMatrix, source: ImageData, opts: RenderOptions)
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, sizePx, sizePx);
 
-  renderHalftone(
-    ctx,
-    matrix,
-    source,
-    marginCells,
-    cellPx,
-    opts.silhouetteScale ?? 1,
-    opts.filter ?? 'mono',
-  );
+  paintHalftone(ctx, matrix, predicted, source, opts.filter ?? 'mono');
   return canvas;
 }
