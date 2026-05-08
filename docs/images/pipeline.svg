@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Astro QR rendering pipeline: QR matrix, halftone target, mask optimizer, flip budget, renderer, scan verify">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#91918c"/>
+    </marker>
+  </defs>
+  <style>
+    .title { font: 700 20px "Inter Variable", "Inter", -apple-system, system-ui, sans-serif; fill: #211922; letter-spacing: -0.6px; }
+    .subtitle { font: 400 12px "Inter Variable", "Inter", -apple-system, system-ui, sans-serif; fill: #62625b; }
+    .badge { font: 700 13px "Inter Variable", "Inter", -apple-system, system-ui, sans-serif; fill: #ffffff; }
+    .stage-name { font: 600 14.5px "Inter Variable", "Inter", -apple-system, system-ui, sans-serif; fill: #211922; letter-spacing: -0.2px; }
+    .stage-desc { font: 400 11.5px "Inter Variable", "Inter", -apple-system, system-ui, sans-serif; fill: #62625b; }
+    .module { font: 500 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #211922; }
+  </style>
+
+  <rect width="1200" height="360" fill="#ffffff"/>
+
+  <text x="600" y="32" class="title" text-anchor="middle">Astro QR rendering pipeline</text>
+  <text x="600" y="54" class="subtitle" text-anchor="middle">Chu et al. 2013 (Halftone QR) · ArtCoder Sampling-Sim scoring · ART-UP flip budget · ECC level H</text>
+
+  <!-- Stage 1 -->
+  <g transform="translate(15,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">1</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">QR matrix</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">build modules</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">+ reserved-cell mask</text>
+    <text x="90" y="195" class="module" text-anchor="middle">qrMatrix.ts</text>
+  </g>
+  <line x1="197" y1="190" x2="211" y2="190" stroke="#91918c" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 2 -->
+  <g transform="translate(213,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">2</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">Halftone target</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">Floyd–Steinberg dither</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">+ importance weights</text>
+    <text x="90" y="195" class="module" text-anchor="middle">halftoneTarget.ts</text>
+  </g>
+  <line x1="395" y1="190" x2="409" y2="190" stroke="#91918c" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 3 -->
+  <g transform="translate(411,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">3</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">Mask optimizer</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">best of 8 QR masks</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">under Sampling-Sim score</text>
+    <text x="90" y="195" class="module" text-anchor="middle">maskOptimizer.ts</text>
+  </g>
+  <line x1="593" y1="190" x2="607" y2="190" stroke="#91918c" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 4 -->
+  <g transform="translate(609,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">4</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">Flip budget</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">per RS block</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">paid for by ECC slack</text>
+    <text x="90" y="195" class="module" text-anchor="middle">moduleFlipper.ts</text>
+  </g>
+  <line x1="791" y1="190" x2="805" y2="190" stroke="#91918c" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 5 -->
+  <g transform="translate(807,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">5</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">Renderer</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">Halftone or Composite</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">paint to canvas</text>
+    <text x="90" y="183" class="module" text-anchor="middle">halftoneRenderer.ts</text>
+    <text x="90" y="201" class="module" text-anchor="middle">compositeRenderer.ts</text>
+  </g>
+  <line x1="989" y1="190" x2="1003" y2="190" stroke="#91918c" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 6 -->
+  <g transform="translate(1005,80)">
+    <rect width="180" height="220" rx="20" fill="#f6f6f3" stroke="#e5e5e0" stroke-width="1"/>
+    <circle cx="26" cy="26" r="13" fill="#e60023"/>
+    <text x="26" y="30.5" class="badge" text-anchor="middle">6</text>
+    <text x="90" y="92" class="stage-name" text-anchor="middle">Scan verify</text>
+    <text x="90" y="118" class="stage-desc" text-anchor="middle">jsqr in-browser decode</text>
+    <text x="90" y="136" class="stage-desc" text-anchor="middle">→ ScanBadge</text>
+    <text x="90" y="195" class="module" text-anchor="middle">scanVerifier.ts</text>
+  </g>
+
+  <text x="600" y="338" class="subtitle" text-anchor="middle">Full data-flow with weights and acceptance gates → docs/PIPELINE.md</text>
+</svg>
