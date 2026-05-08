@@ -2,7 +2,10 @@ import type { PosterSize, RenderMode } from './types';
 import { DEFAULT_TEMPLATE_ID } from './templates/presets';
 
 export interface CustomSource {
-  dataUrl: string;
+  /** SHA-256 content hash of the uploaded data URL. The actual data URL
+   *  lives in the in-memory cache (`src/lib/imageCache.ts`); reducer state
+   *  only carries this small, stable identifier. */
+  imageHash: string;
   filename: string;
 }
 
@@ -54,8 +57,11 @@ interface PersistedState {
 /** Lazy initial state for `useReducer`. Defaults are returned silently on any
  *  parse, schema, or storage error (private mode, quota, malformed JSON). Only
  *  `url`, `templateId`, and `caption` are rehydrated; other fields stay at
- *  defaults to avoid persisting potentially huge `customSource` data URLs and
- *  to keep transient layout state from leaking across reloads. */
+ *  defaults. We deliberately do NOT persist `customSource` even though it now
+ *  carries only a small hash: the image cache (`src/lib/imageCache.ts`) is
+ *  in-memory only, so a rehydrated hash would point at a nonexistent entry on
+ *  next load. Other transient layout state is also kept out to avoid leaking
+ *  across reloads. */
 export function getInitialState(): AppState {
   if (typeof localStorage === 'undefined') return DEFAULT_STATE;
   try {

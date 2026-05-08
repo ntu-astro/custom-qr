@@ -335,4 +335,13 @@ describe('pipelineIntegration: 48-case matrix', () => {
       expect(r.scanResults.length).toBeGreaterThan(0);
     }
   });
+
+  // Error-path coverage: buildMatrix delegates to QRCode.create, which throws
+  // when no version can hold the data at the configured ECC level. The
+  // `useQrPipeline` hook depends on that exception type to surface a friendly
+  // "too long" error to the user. The 48-case matrix exercises only inputs
+  // that fit within V15, so this case is asserted explicitly here.
+  it('throws when the input is too long to fit in any QR version at ECC level H', () => {
+    expect(() => buildMatrix('A'.repeat(10000))).toThrow();
+  });
 });

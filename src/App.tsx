@@ -7,6 +7,7 @@ import { composePoster } from './lib/composer';
 import { decodeQrImage } from './lib/decodeQrImage';
 import { reducer, getInitialState, PERSIST_KEY } from './appReducer';
 import { readFileAsDataUrl } from './lib/imageOps';
+import { cacheImageDataUrl } from './lib/imageCache';
 import { useQrPipeline } from './hooks/useQrPipeline';
 
 const CUSTOM_PALETTE: Palette = { accent: '#435ee5' };
@@ -55,8 +56,10 @@ export default function App() {
   });
 
   // Persist a tiny slice of state across reloads. Intentionally excludes
-  // customSource (potentially huge data URL), posterSize, multiSize, and
-  // silhouetteScale. Failures (private mode, quota) are swallowed.
+  // customSource: even though it now carries only a small hash, the image
+  // cache (src/lib/imageCache.ts) is in-memory only, so a rehydrated hash
+  // would point at a nonexistent entry. Also excludes posterSize, multiSize,
+  // and silhouetteScale. Failures (private mode, quota) are swallowed.
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
     try {
@@ -114,7 +117,8 @@ export default function App() {
     }
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      dispatch({ type: 'SET_CUSTOM_SOURCE', source: { dataUrl, filename: file.name } });
+      const imageHash = await cacheImageDataUrl(dataUrl);
+      dispatch({ type: 'SET_CUSTOM_SOURCE', source: { imageHash, filename: file.name } });
       setUploadError(undefined);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');

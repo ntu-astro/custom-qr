@@ -42,17 +42,19 @@ import { applyModuleFlip, scoreModuleAgainstTarget } from './samplingSim';
 import type { FlipBudgetPolicy, BlockFlipState } from './flipBudget';
 import { shouldAcceptFlip, buildFinderDistanceMap } from './flipBudget';
 import { ART_UP_COEFFICIENTS, DEFAULT_FAILURE_TOLERANCE, CALIBRATION_AUC } from './flipBudget.calibration';
+import { DEFAULT_ECC_BUDGET_RATIO, MAX_ECC_BUDGET_RATIO } from './halftoneTunables';
 
-/** Per-block flip budget as a fraction of ecCount, default.
- *  RS-H corrects up to floor(ecCount/2) errors per block (≈ 0.5 ecCount). The
- *  paper budgets 0.49 leaving 1 unit of theoretical safety. In practice jsqr
- *  (used in jsdom for tests + as our preview-time scan badge) is markedly
- *  stricter than camera-based decoders — even a single over-budget flip
- *  cascades through the locator detection. We default to 0.15 (~7.5 % of
- *  modules per block) which empirically keeps jsqr happy under both white
- *  and silhouette sources at every supported version. Raise via the option
- *  arg if you've tested it on a phone and want more visual punch. */
-export const DEFAULT_ECC_BUDGET_RATIO = 0.15;
+/** Re-exported from `halftoneTunables.ts`. Per-block flip budget as a fraction
+ *  of ecCount, default. RS-H corrects up to floor(ecCount/2) errors per block
+ *  (≈ 0.5 ecCount). The paper budgets 0.49 leaving 1 unit of theoretical
+ *  safety. In practice jsqr (used in jsdom for tests + as our preview-time
+ *  scan badge) is markedly stricter than camera-based decoders — even a
+ *  single over-budget flip cascades through the locator detection. We default
+ *  to 0.15 (~7.5 % of modules per block) which empirically keeps jsqr happy
+ *  under both white and silhouette sources at every supported version. Raise
+ *  via the option arg if you've tested it on a phone and want more visual
+ *  punch. */
+export { DEFAULT_ECC_BUDGET_RATIO };
 
 /** Default flip-budget policy. ART-UP probabilistic gating is enabled only
  *  when calibration has been run (AUC > 0.85 per spec §9) — otherwise the
@@ -201,9 +203,9 @@ export function flipModulesByCodeword(
   // budgetRatio, prefer that ratio; otherwise honour DEFAULT_ECC_BUDGET_RATIO.
   let policy: FlipBudgetPolicy = options.policy ?? DEFAULT_FLIP_BUDGET_POLICY;
   if (policy.kind === 'fixed' && options.budgetRatio !== undefined) {
-    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(0.49, options.budgetRatio)) };
+    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(MAX_ECC_BUDGET_RATIO, options.budgetRatio)) };
   } else if (policy.kind === 'fixed') {
-    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(0.49, policy.ratio)) };
+    policy = { kind: 'fixed', ratio: Math.max(0, Math.min(MAX_ECC_BUDGET_RATIO, policy.ratio)) };
   }
   const ctx = options.samplingContext;
   const layout = getEccLayoutForH(matrix.size);

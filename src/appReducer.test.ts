@@ -149,7 +149,7 @@ describe('getInitialState', () => {
         url: 'https://example.com',
         templateId: 'orion',
         caption: 'ok',
-        customSource: { dataUrl: 'data:image/png;base64,XXXX', filename: 'x.png' },
+        customSource: { imageHash: 'aaaa', filename: 'x.png' },
         posterSize: { kind: 'igStory', width: 1080, height: 1920 },
         multiSize: true,
         silhouetteScale: 0.5,
@@ -179,7 +179,7 @@ describe('reducer', () => {
     const stateWithCustom: AppState = {
       ...baseState,
       templateId: 'custom',
-      customSource: { dataUrl: 'data:image/png;base64,X', filename: 'x.png' },
+      customSource: { imageHash: 'hash-x', filename: 'x.png' },
     };
     const next = reducer(stateWithCustom, { type: 'SELECT_TEMPLATE', id: 'crux' });
     expect(next).not.toBe(stateWithCustom);
@@ -188,7 +188,7 @@ describe('reducer', () => {
   });
 
   it("SELECT_TEMPLATE — to 'custom' KEEPS customSource (does not null it)", () => {
-    const customSource: CustomSource = { dataUrl: 'data:image/png;base64,X', filename: 'x.png' };
+    const customSource: CustomSource = { imageHash: 'hash-x', filename: 'x.png' };
     const stateWithCustom: AppState = {
       ...baseState,
       templateId: 'orion',
@@ -201,7 +201,7 @@ describe('reducer', () => {
   });
 
   it("SET_CUSTOM_SOURCE — sets templateId='custom' AND assigns customSource", () => {
-    const source: CustomSource = { dataUrl: 'data:image/png;base64,Y', filename: 'y.png' };
+    const source: CustomSource = { imageHash: 'hash-y', filename: 'y.png' };
     const next = reducer(baseState, { type: 'SET_CUSTOM_SOURCE', source });
     expect(next).not.toBe(baseState);
     expect(next.templateId).toBe('custom');
@@ -215,7 +215,7 @@ describe('reducer', () => {
     const stateWithCustom: AppState = {
       ...baseState,
       templateId: 'custom',
-      customSource: { dataUrl: 'data:image/png;base64,X', filename: 'x.png' },
+      customSource: { imageHash: 'hash-x', filename: 'x.png' },
     };
     const next = reducer(stateWithCustom, { type: 'CLEAR_CUSTOM_SOURCE' });
     expect(next).not.toBe(stateWithCustom);

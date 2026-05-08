@@ -1,6 +1,6 @@
 import type { Palette, PosterSize } from '../types';
 import { FONT_STACK_CANVAS } from '../types';
-import { STRUCTURAL_INK_HEX } from './halftoneRenderer';
+import { STRUCTURAL_INK_HEX } from './imageOps';
 
 const SAFE_ZONE_FRACTION = 0.75;
 const QR_BAND_FRACTION = 0.75;
