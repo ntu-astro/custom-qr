@@ -35,10 +35,17 @@ export interface PredictedCanvas {
    *  at paint time, in dev builds only — guards the invariant that flips
    *  never mutate reserved-cell topology. */
   reservedChecksum: number;
-  /** The lifted (margin-graduated) raster, retained for the composite
-   *  renderer's per-subpixel colour sampling and for Sampling-Sim's "what
-   *  would the camera read" calculations. */
+  /** The rasterised source, retained for the composite renderer's per-subpixel
+   *  colour sampling and for Sampling-Sim's "what would the camera read"
+   *  calculations. Halftone and composite-mono branches build `data` from a
+   *  margin-lifted copy; composite-color leaves both `raster` and `data`
+   *  un-lifted so the photo's outer ring stays intact. */
   raster: ImageData;
+  /** True when `data` carries greyscale pixels (R=G=B, alpha=255) — i.e. the
+   *  halftone dither output or the composite-mono threshold output. False for
+   *  composite-color where `data` is the raw raster. Sampling-Sim uses this to
+   *  skip the toLuminance call on the hot path. */
+  dataIsGreyscale: boolean;
 }
 
 /** 32-bit FNV-1a hash over the reserved mask. Cheap, collision-free at this
@@ -99,23 +106,40 @@ export function buildPredictedCanvas(
   const canvasSubSize = totalCells * SUBPX_PER_CELL;
 
   const rasterised = rasterizeSource(source, canvasSubSize, silhouetteScale);
-  const lifted = liftMarginBrightness(rasterised, marginCells, matrix.size);
+
+  // Margin brightness lift fades the source toward white in the margin band so
+  // finder patterns stay locator-detectable under Floyd-Steinberg dithering or
+  // a binary threshold. This is the right semantics for halftone (dither across
+  // the whole canvas) and for composite+mono (the surround is binarised), but
+  // it is wrong for composite+color: bleaching the photo's outer ring would
+  // strip artistic content. The composite-color renderer encodes data in the
+  // centre subpixel and doesn't depend on the margin being light, so we skip
+  // the lift in that branch.
+  const needsMarginLift = renderMode === 'halftone' || filter === 'mono';
+  const lifted = needsMarginLift
+    ? liftMarginBrightness(rasterised, marginCells, matrix.size)
+    : rasterised;
 
   let data: ImageData;
+  let dataIsGreyscale: boolean;
   if (renderMode === 'halftone') {
     const blended = blendAgainstWhite(lifted);
     const binary = ditherFloydSteinberg(blended);
     data = expandBinaryToImageData(binary, canvasSubSize);
+    dataIsGreyscale = true;
   } else if (filter === 'mono') {
     // composite + mono: threshold the lifted raster to a binary luma map so the
     // renderer can sample white/black directly. Threshold against MAX_INK_LUM
     // for consistency with halftone mode's ink darkness ceiling.
     const blended = blendAgainstWhite(lifted);
     data = thresholdToImageData(blended);
+    dataIsGreyscale = true;
   } else {
-    // composite + color: pass the lifted raster through unchanged. The
-    // composite renderer samples per-subpixel from `data` directly.
+    // composite + color: pass the un-lifted raster through unchanged. The
+    // composite renderer samples per-subpixel from `data` directly and handles
+    // truly transparent letterbox subpixels via its own alpha-only fallback.
     data = lifted;
+    dataIsGreyscale = false;
   }
 
   return {
@@ -126,5 +150,6 @@ export function buildPredictedCanvas(
     marginCells,
     reservedChecksum: computeReservedChecksum(matrix.reserved),
     raster: rasterised,
+    dataIsGreyscale,
   };
 }

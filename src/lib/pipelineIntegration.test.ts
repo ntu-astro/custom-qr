@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { FilterMode, QRMatrix, RenderMode, ScanResult } from '../types';
 import { buildMatrix } from './qrMatrix';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 import { pickBestMask } from './maskOptimizer';
 import { flipModulesByCodeword } from './moduleFlipper';
 import { render as renderHalftone } from './halftoneRenderer';
@@ -129,7 +129,7 @@ function runPipeline(config: CaseConfig): CaseResult {
   const matrix: QRMatrix = buildMatrix(url);
   const source = makeSource(config.source);
 
-  const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, SILHOUETTE_SCALE);
+  const target = computeSilhouetteTarget(source, matrix.size, matrix.reserved, SILHOUETTE_SCALE);
   const predicted = buildPredictedCanvas(
     source,
     matrix,

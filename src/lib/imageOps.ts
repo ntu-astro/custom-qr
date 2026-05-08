@@ -4,13 +4,13 @@
 
 import { toLuminance } from './colorUtils';
 import { SUBPX_PER_CELL } from './pipelineConstants';
-import { MAX_INK_LUM, MARGIN_INNER_INK_FACTOR } from './halftoneTunables';
+import { MAX_INK_LUM, MARGIN_INNER_INK_FACTOR } from './pipelineTunables';
 
 // ---------------------------------------------------------------------------
 // Image-conditioning constants (shared between halftone + composite renderers)
 // ---------------------------------------------------------------------------
 
-/** Re-exported from `halftoneTunables.ts`. Maximum normalised luminance (0..1)
+/** Re-exported from `pipelineTunables.ts`. Maximum normalised luminance (0..1)
  *  any silhouette ink sub-pixel may carry. jsqr only locks on if dark modules
  *  read clearly darker than light modules, so per-pixel colour samples are
  *  clamped down to this ceiling. */
@@ -40,7 +40,7 @@ export const STRUCTURAL_INK_RGB = `rgb(${STRUCTURAL_INK.r},${STRUCTURAL_INK.g},$
  *  contribute to the dominant ink-colour average. Empirically tuned. */
 export const DARK_PIXEL_LUMA_CUTOFF = 200;
 
-// MARGIN_INNER_INK_FACTOR is imported from `halftoneTunables.ts`. It controls
+// MARGIN_INNER_INK_FACTOR is imported from `pipelineTunables.ts`. It controls
 // the maximum fraction of original darkness retained at the inner edge of the
 // margin (immediately adjacent to the QR data area). The factor falls off
 // linearly to 0 at the canvas edge — so the outermost ring is essentially

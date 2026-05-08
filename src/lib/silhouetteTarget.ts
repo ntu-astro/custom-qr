@@ -1,5 +1,9 @@
 /** Stage-2 prep: turn the source illustration into the per-module data the
- *  optimiser needs.
+ *  mask optimiser and module flipper need. Used by BOTH render modes — the
+ *  module-resolution dither produces a "where does the silhouette want dark
+ *  modules" map that drives mask choice and codeword flips regardless of
+ *  whether the final paint is halftone (ink across the whole canvas) or
+ *  composite (the source painted around the centre subpixel).
  *
  *  Output:
  *    - target[my][mx]:    boolean — what the source wants this module to be
@@ -13,7 +17,7 @@
 
 import { rasterizeSource, ditherFloydSteinberg, blendAgainstWhite } from './imageOps';
 
-export interface HalftoneTarget {
+export interface SilhouetteTarget {
   size: number;
   /** size×size; true = source wants dark module */
   target: boolean[][];
@@ -29,12 +33,12 @@ export interface HalftoneTarget {
  *  an order of magnitude more pull. */
 const NON_SILHOUETTE_FLOOR = 0.1;
 
-export function computeHalftoneTarget(
+export function computeSilhouetteTarget(
   source: ImageData,
   size: number,
   reserved: Uint8Array,
   silhouetteScale: number = 1,
-): HalftoneTarget {
+): SilhouetteTarget {
   // The dither pass is the canonical signal of "where the source wants ink".
   // We rasterise onto a transparent canvas, blend against white (so transparent
   // letterbox pixels read as luma 255 rather than 0 — without this, silhouettes

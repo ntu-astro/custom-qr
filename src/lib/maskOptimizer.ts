@@ -19,7 +19,7 @@
 
 import type { QRMatrix } from '../types';
 import { buildMatrix } from './qrMatrix';
-import type { HalftoneTarget } from './halftoneTarget';
+import type { SilhouetteTarget } from './silhouetteTarget';
 import type { PredictedCanvas } from './predictedCanvas';
 import { buildSamplingContext, totalScore } from './samplingSim';
 
@@ -34,7 +34,7 @@ export interface MaskScore {
 
 export function scoreMask(
   matrix: QRMatrix,
-  target: HalftoneTarget,
+  target: SilhouetteTarget,
   predicted: PredictedCanvas,
 ): number {
   const ctx = buildSamplingContext(predicted, matrix);
@@ -48,7 +48,7 @@ export interface PickBestMaskResult {
 
 export function pickBestMask(
   text: string,
-  target: HalftoneTarget,
+  target: SilhouetteTarget,
   predicted: PredictedCanvas,
 ): PickBestMaskResult {
   const scores: MaskScore[] = [];

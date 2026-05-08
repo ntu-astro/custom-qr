@@ -29,7 +29,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildMatrix } from './qrMatrix';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 import { pickBestMask } from './maskOptimizer';
 import { flipModulesByCodeword } from './moduleFlipper';
 import { render as renderHalftone } from './halftoneRenderer';
@@ -89,7 +89,7 @@ function makeBlackCircleSource(side: number): ImageData {
  *  scan-verify step, which is not part of the perf-budgeted hot path). */
 function runV10Pipeline(url: string, source: ImageData): { width: number } {
   const matrix = buildMatrix(url);
-  const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, 1);
+  const target = computeSilhouetteTarget(source, matrix.size, matrix.reserved, 1);
   const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
   const { best } = pickBestMask(url, target, predicted);
   const samplingContext = buildSamplingContext(predicted, best.matrix);

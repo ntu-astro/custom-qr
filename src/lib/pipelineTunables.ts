@@ -1,5 +1,9 @@
 /**
- * Empirically tuned luminance and ink thresholds for the halftone pipeline.
+ * Empirically tuned luminance, ink, flip-budget, and Sampling-Sim constants
+ * shared across the QR rendering pipeline. Some are halftone-only (the inner-
+ * margin lift, the dominant-ink luma ceiling); others are mode-agnostic and
+ * apply to both halftone and composite render paths (MAX_INK_LUM, the DARK/
+ * LIGHT readback targets, the ECC budget ratios).
  *
  * These values were validated against the jsqr decoder via the 48-case
  * integration matrix. Changing any of them WITHOUT re-running the matrix

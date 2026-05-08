@@ -31,7 +31,7 @@
  *  overlapping flips that don't actually compound. */
 
 import type { QRMatrix } from '../types';
-import type { HalftoneTarget } from './halftoneTarget';
+import type { SilhouetteTarget } from './silhouetteTarget';
 import {
   getEccLayoutForH,
   buildStreamIndexToBlockTable,
@@ -42,9 +42,9 @@ import { applyModuleFlip, scoreModuleAgainstTarget } from './samplingSim';
 import type { FlipBudgetPolicy, BlockFlipState } from './flipBudget';
 import { shouldAcceptFlip, buildFinderDistanceMap } from './flipBudget';
 import { ART_UP_COEFFICIENTS, DEFAULT_FAILURE_TOLERANCE, CALIBRATION_AUC } from './flipBudget.calibration';
-import { DEFAULT_ECC_BUDGET_RATIO, MAX_ECC_BUDGET_RATIO } from './halftoneTunables';
+import { DEFAULT_ECC_BUDGET_RATIO, MAX_ECC_BUDGET_RATIO } from './pipelineTunables';
 
-/** Re-exported from `halftoneTunables.ts`. Per-block flip budget as a fraction
+/** Re-exported from `pipelineTunables.ts`. Per-block flip budget as a fraction
  *  of ecCount, default. RS-H corrects up to floor(ecCount/2) errors per block
  *  (≈ 0.5 ecCount). The paper budgets 0.49 leaving 1 unit of theoretical
  *  safety. In practice jsqr (used in jsdom for tests + as our preview-time
@@ -120,7 +120,7 @@ export interface FlipOptions {
  *  baseline). */
 function scoreCodewordDelta(
   ctx: SamplingSimContext,
-  target: HalftoneTarget,
+  target: SilhouetteTarget,
   modules: ModulePosition[],
 ): number {
   // The set of modules whose readback may change due to flipping this
@@ -196,7 +196,7 @@ function codewordOverlapsChange(
 
 export function flipModulesByCodeword(
   matrix: QRMatrix,
-  target: HalftoneTarget,
+  target: SilhouetteTarget,
   options: FlipOptions,
 ): FlipResult {
   // Resolve effective policy. If the caller passes a 'fixed' policy with a

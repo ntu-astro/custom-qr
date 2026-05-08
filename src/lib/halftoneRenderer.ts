@@ -11,7 +11,7 @@ import type { PredictedCanvas } from './predictedCanvas';
 import { computeReservedChecksum } from './predictedCanvas';
 import { toLuminance } from './colorUtils';
 import { SUBPX_PER_CELL } from './pipelineConstants';
-import { DOMINANT_INK_LUM_CEILING } from './halftoneTunables';
+import { DOMINANT_INK_LUM_CEILING } from './pipelineTunables';
 import { eachCell } from './cellIteration';
 import type { Renderer } from './renderers/types';
 

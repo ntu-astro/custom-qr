@@ -4,7 +4,7 @@ import { DEFAULT_PLACEHOLDER_URL } from '../types';
 import { findTemplate } from '../templates/presets';
 import type { CustomSource } from '../appReducer';
 import { buildMatrix } from '../lib/qrMatrix';
-import { computeHalftoneTarget } from '../lib/halftoneTarget';
+import { computeSilhouetteTarget } from '../lib/silhouetteTarget';
 import { pickBestMask } from '../lib/maskOptimizer';
 import { flipModulesByCodeword } from '../lib/moduleFlipper';
 import { getRenderer } from '../lib/renderers';
@@ -97,9 +97,10 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
         }
         const imageData = await loadImageData(sourcePath, { cropToSquare });
 
-        // Stage 2 prep: dithered halftone target (per-module dark/light vote
-        // + importance weights). Used by both mask selection and flip scoring.
-        const halftoneTarget = computeHalftoneTarget(
+        // Stage 2 prep: dithered per-module silhouette target (where the
+        // source wants dark vs light + importance weights). Used by both mask
+        // selection and flip scoring, regardless of final render mode.
+        const silhouetteTarget = computeSilhouetteTarget(
           imageData,
           baseMatrix.size,
           baseMatrix.reserved,
@@ -123,13 +124,13 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
 
         // Stage 2: pick the QR mask whose post-mask bit pattern best matches
         // the dithered silhouette under the Sampling-Sim metric (Phase 2).
-        const { best } = pickBestMask(resolvedUrl, halftoneTarget, predicted);
+        const { best } = pickBestMask(resolvedUrl, silhouetteTarget, predicted);
 
         // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
         // The sampling context is built for the post-mask matrix and shared
         // with the flipper so its incremental readback updates are reused.
         const samplingContext = buildSamplingContext(predicted, best.matrix);
-        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget, {
+        const { matrix } = flipModulesByCodeword(best.matrix, silhouetteTarget, {
           samplingContext,
         });
 
