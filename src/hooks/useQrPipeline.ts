@@ -8,6 +8,7 @@ import { computeHalftoneTarget } from '../lib/halftoneTarget';
 import { pickBestMask } from '../lib/maskOptimizer';
 import { flipModulesByCodeword } from '../lib/moduleFlipper';
 import { render as renderHalftone } from '../lib/halftoneRenderer';
+import { buildPredictedCanvas } from '../lib/predictedCanvas';
 import { verify } from '../lib/scanVerifier';
 import { loadImageData } from '../lib/imageOps';
 
@@ -15,6 +16,7 @@ import { loadImageData } from '../lib/imageOps';
 // whole output. Phone scanners may struggle with halftone QRs that lack a
 // quiet zone; the printed copy should be tested on a real phone.
 const CANVAS_MARGIN_PX = 0;
+const CELL_PX = 18;
 
 export interface QrPipelineInput {
   url: string;
@@ -85,7 +87,21 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
         // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
         const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
 
-        const qr = renderHalftone(matrix, imageData, {
+        // Stage 3b: build the predicted subpixel canvas once. Flips above only
+        // touch data-module bits (not reserved-cell topology), so the canvas is
+        // valid for the post-flip matrix — the renderer's reservedChecksum
+        // assertion guards that invariant in dev builds.
+        const marginCells = Math.max(0, Math.round(CANVAS_MARGIN_PX / CELL_PX));
+        const predicted = buildPredictedCanvas(
+          imageData,
+          matrix,
+          marginCells,
+          silhouetteScale,
+          'halftone',
+          filter,
+        );
+
+        const qr = renderHalftone(matrix, predicted, imageData, {
           marginPx: CANVAS_MARGIN_PX,
           silhouetteScale,
           filter,

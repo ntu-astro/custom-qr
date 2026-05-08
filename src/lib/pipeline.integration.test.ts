@@ -4,6 +4,7 @@ import { computeHalftoneTarget } from './halftoneTarget';
 import { pickBestMask } from './maskOptimizer';
 import { flipModulesByCodeword } from './moduleFlipper';
 import { render as renderHalftone } from './halftoneRenderer';
+import { buildPredictedCanvas } from './predictedCanvas';
 import { verify } from './scanVerifier';
 
 /**
@@ -36,7 +37,8 @@ describe('halftone pipeline integration', () => {
     const { best } = pickBestMask(url, target);
     const { matrix: flipped } = flipModulesByCodeword(best.matrix, target);
 
-    const canvas = renderHalftone(flipped, source, {
+    const predicted = buildPredictedCanvas(source, flipped, 0, 1, 'halftone', 'mono');
+    const canvas = renderHalftone(flipped, predicted, source, {
       marginPx: 0,
       silhouetteScale: 1,
       filter: 'mono',
@@ -67,7 +69,8 @@ describe('halftone pipeline integration', () => {
     const { best } = pickBestMask(url, target);
     const { matrix: flipped } = flipModulesByCodeword(best.matrix, target);
 
-    const canvas = renderHalftone(flipped, source, {
+    const predicted = buildPredictedCanvas(source, flipped, 0, 0.8, 'halftone', 'color');
+    const canvas = renderHalftone(flipped, predicted, source, {
       marginPx: 0,
       silhouetteScale: 0.8,
       filter: 'color',

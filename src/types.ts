@@ -41,6 +41,12 @@ export interface ScanResult {
  *    darkness). Best for colourful uploaded photos. */
 export type FilterMode = 'mono' | 'color';
 
+/** Render mode chosen by the pipeline.
+ *  - `'halftone'`: Chu et al. 2013 — diffuses the image across all modules.
+ *  - `'composite'`: qart.js-style — paints a clean QR centre with the image as
+ *    surround. */
+export type RenderMode = 'halftone' | 'composite';
+
 export interface RenderOptions {
   /** 0..60 — pixels of extra dithered canvas around the QR data area. */
   marginPx: number;
