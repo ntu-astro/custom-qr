@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildMatrix } from './qrMatrix';
 import { computeHalftoneTarget } from './halftoneTarget';
 import { pickBestMask, scoreMask } from './maskOptimizer';
+import { buildPredictedCanvas } from './predictedCanvas';
 
 function blackImageData(w: number, h: number): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -35,8 +36,10 @@ describe('pickBestMask', () => {
 
   it('returns 8 scored masks, sorted ascending by score', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
-    const { best, scores } = pickBestMask(text, target);
+    const source = silhouetteImageData(256, 256);
+    const target = computeHalftoneTarget(source, base.size, base.reserved);
+    const predicted = buildPredictedCanvas(source, base, 0, 1, 'halftone', 'mono');
+    const { best, scores } = pickBestMask(text, target, predicted);
 
     expect(scores).toHaveLength(8);
     for (let i = 1; i < scores.length; i++) {
@@ -46,29 +49,27 @@ describe('pickBestMask', () => {
     expect(best.matrix.size).toBe(base.size);
   });
 
-  it('chooses different masks for different targets', () => {
+  it('mask scores depend on the target — different targets produce different score vectors', () => {
     const base = buildMatrix(text);
-    const blackTarget = computeHalftoneTarget(blackImageData(256, 256), base.size, base.reserved);
-    const silTarget = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
+    const blackSrc = blackImageData(256, 256);
+    const silSrc = silhouetteImageData(256, 256);
+    const blackTarget = computeHalftoneTarget(blackSrc, base.size, base.reserved);
+    const silTarget = computeHalftoneTarget(silSrc, base.size, base.reserved);
+    const blackPred = buildPredictedCanvas(blackSrc, base, 0, 1, 'halftone', 'mono');
+    const silPred = buildPredictedCanvas(silSrc, base, 0, 1, 'halftone', 'mono');
 
-    const blackBest = pickBestMask(text, blackTarget).best.maskPattern;
-    const silBest = pickBestMask(text, silTarget).best.maskPattern;
-
-    // Not strictly required to differ, but for two very different targets the
-    // best mask usually does. If both happen to coincide, at least confirm the
-    // raw scores diverge meaningfully — i.e. mask scoring genuinely depends
-    // on the target.
-    const blackScores = pickBestMask(text, blackTarget).scores.map((s) => s.score);
-    const silScores = pickBestMask(text, silTarget).scores.map((s) => s.score);
+    const blackScores = pickBestMask(text, blackTarget, blackPred).scores.map((s) => s.score);
+    const silScores = pickBestMask(text, silTarget, silPred).scores.map((s) => s.score);
     const totalDiff = blackScores.reduce((acc, s, i) => acc + Math.abs(s - silScores[i]), 0);
     expect(totalDiff).toBeGreaterThan(0);
-    void blackBest; void silBest;
   });
 
   it('preserves the reserved mask on the returned matrix', () => {
     const base = buildMatrix(text);
-    const target = computeHalftoneTarget(silhouetteImageData(256, 256), base.size, base.reserved);
-    const { best } = pickBestMask(text, target);
+    const source = silhouetteImageData(256, 256);
+    const target = computeHalftoneTarget(source, base.size, base.reserved);
+    const predicted = buildPredictedCanvas(source, base, 0, 1, 'halftone', 'mono');
+    const { best } = pickBestMask(text, target, predicted);
     // Reserved mask must round-trip — the renderer and Stage 3 read it from
     // matrix.reserved to identify finder/timing/alignment cells.
     expect(best.matrix.reserved).toEqual(base.reserved);
@@ -76,17 +77,14 @@ describe('pickBestMask', () => {
 });
 
 describe('scoreMask', () => {
-  it('returns 0 when matrix and target perfectly agree (synthetic)', () => {
-    const matrix = buildMatrix('a');
-    // Build a target that exactly mirrors the matrix's modules. Importance is
-    // uniform 1.0 — the agreement check is what matters here.
-    const target = {
-      size: matrix.size,
-      target: matrix.modules.map((row) => [...row]),
-      importance: Array.from({ length: matrix.size }, () =>
-        Array<number>(matrix.size).fill(1.0),
-      ),
-    };
-    expect(scoreMask(matrix, target)).toBe(0);
+  it('returns a finite, non-negative number for a representative input', () => {
+    const text = 'a';
+    const matrix = buildMatrix(text);
+    const source = blackImageData(64, 64);
+    const target = computeHalftoneTarget(source, matrix.size, matrix.reserved);
+    const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
+    const score = scoreMask(matrix, target, predicted);
+    expect(Number.isFinite(score)).toBe(true);
+    expect(score).toBeGreaterThanOrEqual(0);
   });
 });

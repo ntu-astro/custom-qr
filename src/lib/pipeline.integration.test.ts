@@ -5,6 +5,7 @@ import { pickBestMask } from './maskOptimizer';
 import { flipModulesByCodeword } from './moduleFlipper';
 import { render as renderHalftone } from './halftoneRenderer';
 import { buildPredictedCanvas } from './predictedCanvas';
+import { buildSamplingContext } from './samplingSim';
 import { verify } from './scanVerifier';
 
 /**
@@ -34,10 +35,11 @@ describe('halftone pipeline integration', () => {
     const source = makeGreySource(200, 200);
 
     const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, 1);
-    const { best } = pickBestMask(url, target);
-    const { matrix: flipped } = flipModulesByCodeword(best.matrix, target);
+    const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
+    const { best } = pickBestMask(url, target, predicted);
+    const samplingContext = buildSamplingContext(predicted, best.matrix);
+    const { matrix: flipped } = flipModulesByCodeword(best.matrix, target, { samplingContext });
 
-    const predicted = buildPredictedCanvas(source, flipped, 0, 1, 'halftone', 'mono');
     const canvas = renderHalftone(flipped, predicted, source, {
       marginPx: 0,
       silhouetteScale: 1,
@@ -66,10 +68,11 @@ describe('halftone pipeline integration', () => {
     const source = makeGreySource(200, 255);
 
     const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, 0.8);
-    const { best } = pickBestMask(url, target);
-    const { matrix: flipped } = flipModulesByCodeword(best.matrix, target);
+    const predicted = buildPredictedCanvas(source, matrix, 0, 0.8, 'halftone', 'color');
+    const { best } = pickBestMask(url, target, predicted);
+    const samplingContext = buildSamplingContext(predicted, best.matrix);
+    const { matrix: flipped } = flipModulesByCodeword(best.matrix, target, { samplingContext });
 
-    const predicted = buildPredictedCanvas(source, flipped, 0, 0.8, 'halftone', 'color');
     const canvas = renderHalftone(flipped, predicted, source, {
       marginPx: 0,
       silhouetteScale: 0.8,

@@ -10,6 +10,7 @@ import { flipModulesByCodeword } from '../lib/moduleFlipper';
 import { render as renderHalftone } from '../lib/halftoneRenderer';
 import { render as renderComposite } from '../lib/compositeRenderer';
 import { buildPredictedCanvas } from '../lib/predictedCanvas';
+import { buildSamplingContext } from '../lib/samplingSim';
 import { verify } from '../lib/scanVerifier';
 import { loadImageData } from '../lib/imageOps';
 
@@ -76,32 +77,41 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
             : findTemplate(templateId).sourcePath;
         const imageData = await loadImageData(sourcePath);
 
-        // Stage 2: pick the QR mask whose post-mask bit pattern best matches
-        // the dithered silhouette, weighted by per-module importance.
+        // Stage 2 prep: dithered halftone target (per-module dark/light vote
+        // + importance weights). Used by both mask selection and flip scoring.
         const halftoneTarget = computeHalftoneTarget(
           imageData,
           baseMatrix.size,
           baseMatrix.reserved,
           silhouetteScale,
         );
-        const { best } = pickBestMask(resolvedUrl, halftoneTarget);
 
-        // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
-        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget);
-
-        // Stage 3b: build the predicted subpixel canvas once. Flips above only
-        // touch data-module bits (not reserved-cell topology), so the canvas is
-        // valid for the post-flip matrix — the renderer's reservedChecksum
-        // assertion guards that invariant in dev builds.
+        // Stage 2 prep: build the predicted subpixel canvas once. Mask
+        // selection and flip scoring both need it. Flips below mutate only
+        // data-module bits (not reserved-cell topology), so this canvas is
+        // valid throughout — the renderer's reservedChecksum assertion guards
+        // the invariant in dev builds.
         const marginCells = Math.max(0, Math.round(CANVAS_MARGIN_PX / CELL_PX));
         const predicted = buildPredictedCanvas(
           imageData,
-          matrix,
+          baseMatrix,
           marginCells,
           silhouetteScale,
           renderMode,
           filter,
         );
+
+        // Stage 2: pick the QR mask whose post-mask bit pattern best matches
+        // the dithered silhouette under the Sampling-Sim metric (Phase 2).
+        const { best } = pickBestMask(resolvedUrl, halftoneTarget, predicted);
+
+        // Stage 3a: per-RS-block greedy codeword flips, paid for by ECC slack.
+        // The sampling context is built for the post-mask matrix and shared
+        // with the flipper so its incremental readback updates are reused.
+        const samplingContext = buildSamplingContext(predicted, best.matrix);
+        const { matrix } = flipModulesByCodeword(best.matrix, halftoneTarget, {
+          samplingContext,
+        });
 
         // Stage 4: dispatch on render mode.
         const qr = renderMode === 'composite'
