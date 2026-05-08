@@ -21,6 +21,7 @@
  *  from shipping unscannable QRs. */
 
 import type { SamplingSimContext } from './samplingSim';
+import { SUBPX_PER_CELL } from './pipelineConstants';
 
 export type FlipBudgetPolicy =
   | { kind: 'fixed'; ratio: number }
@@ -49,10 +50,6 @@ export interface ArtUpFeatures {
   finderDistance: number;
 }
 
-export interface CodewordCandidate {
-  modules: Array<{ y: number; x: number }>;
-}
-
 export interface BlockFlipState {
   /** prod(1 - p_i) over accepted flips so far. */
   cumulativeSurvivalProb: number;
@@ -79,7 +76,7 @@ export function decodeFailureProb(features: ArtUpFeatures, coeffs: ArtUpCoeffici
 export function shouldAcceptFlip(
   policy: FlipBudgetPolicy,
   blockState: BlockFlipState,
-  candidate: CodewordCandidate,
+  candidate: { modules: Array<{ y: number; x: number }> },
   ctx: SamplingSimContext,
   coeffs: ArtUpCoefficients,
   finderDistanceMap: Float32Array | null,
@@ -122,8 +119,8 @@ export function extractFeatures(
   const subWidth = ctx.predicted.width;
 
   // Surround contrast: average of 8 surround subpixel luma minus centre.
-  const csx = (mx + marginCells) * 3 + 1;
-  const csy = (my + marginCells) * 3 + 1;
+  const csx = (mx + marginCells) * SUBPX_PER_CELL + 1;
+  const csy = (my + marginCells) * SUBPX_PER_CELL + 1;
   const centreLuma = ctx.predicted.data.data[(csy * subWidth + csx) * 4] / 255;
   let surroundSum = 0, surroundCount = 0;
   for (let dy = -1; dy <= 1; dy++) {

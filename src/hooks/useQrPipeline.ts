@@ -7,18 +7,19 @@ import { buildMatrix } from '../lib/qrMatrix';
 import { computeHalftoneTarget } from '../lib/halftoneTarget';
 import { pickBestMask } from '../lib/maskOptimizer';
 import { flipModulesByCodeword } from '../lib/moduleFlipper';
-import { render as renderHalftone } from '../lib/halftoneRenderer';
-import { render as renderComposite } from '../lib/compositeRenderer';
+import { getRenderer } from '../lib/renderers';
 import { buildPredictedCanvas } from '../lib/predictedCanvas';
 import { buildSamplingContext } from '../lib/samplingSim';
 import { verify } from '../lib/scanVerifier';
 import { loadImageData } from '../lib/imageOps';
+import { getCachedImageDataUrl } from '../lib/imageCache';
+import { CELL_PX } from '../lib/pipelineConstants';
+import { classifyPipelineError } from '../lib/errors';
 
 // No quiet zone — canvas equals matrix.size × cellPx, silhouette fills the
 // whole output. Phone scanners may struggle with halftone QRs that lack a
 // quiet zone; the printed copy should be tested on a real phone.
 const CANVAS_MARGIN_PX = 0;
-const CELL_PX = 18;
 
 export interface QrPipelineInput {
   url: string;
@@ -52,6 +53,10 @@ export interface QrPipelineState {
  *  source (e.g. upload validation) and is responsible for merging them at the
  *  display layer. */
 export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
+  // INVARIANT: Adding a field here re-runs the full pipeline (mask
+  // optimisation, flipping, rendering — expensive). If the new field should
+  // NOT re-run, route it through the poster `useMemo` in App.tsx instead.
+  // See CLAUDE.md "Key design constraints" #4.
   const { url, templateId, customSource, silhouetteScale, multiSize, filter, renderMode } = input;
 
   const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -59,9 +64,16 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
   const [isRendering, setIsRendering] = useState(false);
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
   const lastGoodQrRef = useRef<HTMLCanvasElement | null>(null);
+  // Monotonic run id. Each effect invocation grabs a unique id and any later
+  // setState / ref-write checks `myId === runIdRef.current` so an in-flight
+  // older run cannot overwrite a newer run's results — this complements the
+  // `cancelled` flag which only handles the unmount case, not overlap.
+  const runIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const myId = ++runIdRef.current;
+    const isStale = (): boolean => cancelled || myId !== runIdRef.current;
 
     async function buildQr() {
       // setState lives inside the async fn (after the synchronous effect body
@@ -71,10 +83,16 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
         const resolvedUrl = url.trim() || DEFAULT_PLACEHOLDER_URL;
         const baseMatrix = buildMatrix(resolvedUrl);
 
-        const sourcePath =
-          templateId === 'custom' && customSource
-            ? customSource.dataUrl
-            : findTemplate(templateId).sourcePath;
+        let sourcePath: string;
+        if (templateId === 'custom' && customSource) {
+          const cached = getCachedImageDataUrl(customSource.imageHash);
+          if (!cached) {
+            throw new Error('Custom image cache miss — please re-upload your image.');
+          }
+          sourcePath = cached;
+        } else {
+          sourcePath = findTemplate(templateId).sourcePath;
+        }
         const imageData = await loadImageData(sourcePath);
 
         // Stage 2 prep: dithered halftone target (per-module dark/light vote
@@ -113,39 +131,36 @@ export function useQrPipeline(input: QrPipelineInput): QrPipelineState {
           samplingContext,
         });
 
-        // Stage 4: dispatch on render mode.
-        const qr = renderMode === 'composite'
-          ? renderComposite(matrix, predicted, {
-              marginPx: CANVAS_MARGIN_PX,
-              silhouetteScale,
-              filter,
-            })
-          : renderHalftone(matrix, predicted, imageData, {
-              marginPx: CANVAS_MARGIN_PX,
-              silhouetteScale,
-              filter,
-            });
+        // Stage 4: dispatch on render mode via the renderer registry.
+        // Adding a new render mode = drop a Renderer file + register it in
+        // src/lib/renderers/index.ts; no changes required here.
+        const qr = getRenderer(renderMode).render({
+          matrix,
+          predicted,
+          source: imageData,
+          opts: {
+            marginPx: CANVAS_MARGIN_PX,
+            silhouetteScale,
+            filter,
+          },
+        });
 
         const sizes = multiSize ? [qr.width, 200] : [qr.width];
         const results = verify(qr, sizes);
 
-        if (cancelled) return;
+        if (isStale()) return;
         setQrCanvas(qr);
         setScanResults(results);
         setPipelineError(undefined);
         lastGoodQrRef.current = qr;
       } catch (err) {
-        if (cancelled) return;
+        if (isStale()) return;
         setQrCanvas(lastGoodQrRef.current);
         setScanResults([]);
-        const msg = err instanceof Error ? err.message : 'Render failed';
-        if (/too long/i.test(msg) || /not enough|no version|cannot encode/i.test(msg)) {
-          setPipelineError('Input too long for ECC level H — shorten the URL or text.');
-        } else {
-          setPipelineError(msg);
-        }
+        const { userMessage } = classifyPipelineError(err);
+        setPipelineError(userMessage);
       } finally {
-        if (!cancelled) setIsRendering(false);
+        if (!isStale()) setIsRendering(false);
       }
     }
 

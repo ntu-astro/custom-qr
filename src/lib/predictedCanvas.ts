@@ -17,15 +17,14 @@ import {
   MAX_INK_LUM,
 } from './imageOps';
 import { toLuminance } from './colorUtils';
-
-const CELL_PX = 18;
+import { CELL_PX, SUBPX_PER_CELL } from './pipelineConstants';
 
 export interface PredictedCanvas {
   /** Subpixel-resolution image data — what the renderer will paint everywhere
    *  except the centre subpixel of data modules, which the renderer overrides
    *  using the (post-flip) matrix at paint time. */
   data: ImageData;
-  /** Equals `(matrix.size + 2 * marginCells) * 3`. */
+  /** Equals `(matrix.size + 2 * marginCells) * SUBPX_PER_CELL`. */
   width: number;
   height: number;
   /** Module side length in canvas pixels. Equals 18 in the current pipeline. */
@@ -97,7 +96,7 @@ export function buildPredictedCanvas(
 ): PredictedCanvas {
   const cellPx = CELL_PX;
   const totalCells = matrix.size + 2 * marginCells;
-  const canvasSubSize = totalCells * 3;
+  const canvasSubSize = totalCells * SUBPX_PER_CELL;
 
   const rasterised = rasterizeSource(source, canvasSubSize, silhouetteScale);
   const lifted = liftMarginBrightness(rasterised, marginCells, matrix.size);

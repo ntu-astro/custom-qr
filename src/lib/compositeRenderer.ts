@@ -17,39 +17,9 @@ import {
 } from './imageOps';
 import type { PredictedCanvas } from './predictedCanvas';
 import { computeReservedChecksum } from './predictedCanvas';
-
-interface CellContext {
-  px: number;
-  py: number;
-  inMatrix: boolean;
-  isReserved: boolean;
-  isModuleDark: boolean;
-  mx: number;
-  my: number;
-}
-
-function eachCell(
-  matrix: QRMatrix,
-  marginCells: number,
-  cellPx: number,
-  visit: (cell: CellContext) => void,
-) {
-  const totalCells = matrix.size + 2 * marginCells;
-  for (let y = 0; y < totalCells; y++) {
-    for (let x = 0; x < totalCells; x++) {
-      const px = x * cellPx;
-      const py = y * cellPx;
-      const inMatrix =
-        x >= marginCells && x < marginCells + matrix.size &&
-        y >= marginCells && y < marginCells + matrix.size;
-      const mx = x - marginCells;
-      const my = y - marginCells;
-      const isReserved = inMatrix && matrix.reserved[my * matrix.size + mx] === 1;
-      const isModuleDark = inMatrix && matrix.modules[my][mx];
-      visit({ px, py, inMatrix, isReserved, isModuleDark, mx, my });
-    }
-  }
-}
+import { SUBPX_PER_CELL } from './pipelineConstants';
+import { eachCell } from './cellIteration';
+import type { Renderer } from './renderers/types';
 
 /** Paint the predicted subpixel canvas (which already carries the cover image
  *  thresholded for mono / pass-through for colour) onto `ctx` at module-pixel
@@ -133,8 +103,8 @@ export function render(
       for (let dy = 0; dy < 3; dy++) {
         for (let dx = 0; dx < 3; dx++) {
           if (dx === 1 && dy === 1) continue; // centre subpixel handled above
-          const sx = (cell.mx + marginCells) * 3 + dx;
-          const sy = (cell.my + marginCells) * 3 + dy;
+          const sx = (cell.mx + marginCells) * SUBPX_PER_CELL + dx;
+          const sy = (cell.my + marginCells) * SUBPX_PER_CELL + dy;
           const idx4 = (sy * predicted.width + sx) * 4;
           if (isOutsideSilhouette(predicted.raster.data, idx4)) {
             const ssx = cell.px + dx * subPx;
@@ -149,3 +119,12 @@ export function render(
 
   return canvas;
 }
+
+/** Registry-friendly adapter around `render`. The function-style `render`
+ *  export is preserved unchanged so existing tests (compositeRenderer.test.ts,
+ *  pipelineIntegration.test.ts) keep working. The composite path ignores the
+ *  `source` field on `RendererInputs`. */
+export const compositeRenderer: Renderer = {
+  id: 'composite',
+  render: ({ matrix, predicted, opts }) => render(matrix, predicted, opts),
+};

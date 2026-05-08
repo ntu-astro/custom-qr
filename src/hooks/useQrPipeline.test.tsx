@@ -3,11 +3,32 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useQrPipeline, type QrPipelineInput } from './useQrPipeline';
 import type { CustomSource } from '../appReducer';
 
-// Mock all heavy pipeline dependencies at the module boundary so the hook
-// test exercises the orchestration logic only — not the halftone math.
+// TEST BOUNDARY: This file exercises the hook's ORCHESTRATION layer only —
+// effect lifecycle, dep-array reactivity, error classification, race-fix
+// (runIdRef) gating, and the lastGoodQrRef fallback. Every pipeline stage
+// below is mocked at the module boundary so the assertions don't depend on
+// halftone math.
+//
+// Real-pipeline coverage (the 48-case matrix across versions × render modes ×
+// filters × sources × multiSize) lives in:
+//   src/lib/pipelineIntegration.test.ts        ← functional matrix
+//   src/lib/pipelineIntegration.perf.test.ts   ← perf gate (skipped on CI)
+//
+// If you find yourself wanting to assert on real pipeline output here, you
+// probably want one of those files instead.
 
 vi.mock('../lib/imageOps', () => ({
   loadImageData: vi.fn(async () => new ImageData(10, 10)),
+}));
+
+// The hook now consults the imageCache to resolve a CustomSource's hash to
+// the actual data URL. Mock both functions: the cache lookup returns a fixed
+// fake data URL so existing tests can keep asserting on what gets passed to
+// loadImageData. The cache itself is exercised by src/lib/imageCache.test.ts.
+vi.mock('../lib/imageCache', () => ({
+  getCachedImageDataUrl: vi.fn(() => 'data:image/png;base64,IAMTHESOURCE'),
+  cacheImageDataUrl: vi.fn(async () => 'fakehash'),
+  clearImageCache: vi.fn(),
 }));
 
 vi.mock('../lib/qrMatrix', () => ({
@@ -48,25 +69,20 @@ vi.mock('../lib/moduleFlipper', () => ({
   })),
 }));
 
-vi.mock('../lib/halftoneRenderer', () => {
+// The hook dispatches renderers through the registry rather than calling
+// `render(...)` directly, so we mock the registry façade and let the registry
+// hand back stub renderers regardless of mode.
+vi.mock('../lib/renderers', () => {
+  const stubRender = vi.fn(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    return canvas;
+  });
+  const stubRenderer = { id: 'halftone' as const, render: stubRender };
   return {
-    render: vi.fn(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 100;
-      canvas.height = 100;
-      return canvas;
-    }),
-  };
-});
-
-vi.mock('../lib/compositeRenderer', () => {
-  return {
-    render: vi.fn(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 100;
-      canvas.height = 100;
-      return canvas;
-    }),
+    getRenderer: vi.fn(() => stubRenderer),
+    RENDERERS: { halftone: stubRenderer, composite: { id: 'composite' as const, render: stubRender } },
   };
 });
 
@@ -201,7 +217,7 @@ describe('useQrPipeline — error handling', () => {
 
     await waitFor(() => expect(result.current.pipelineError).toBeDefined());
     expect(result.current.pipelineError).toBe(
-      'Input too long for ECC level H — shorten the URL or text.',
+      'That URL is too long for QR error correction level H. Please shorten it.',
     );
     expect(result.current.isRendering).toBe(false);
   });
@@ -271,9 +287,9 @@ describe('useQrPipeline — template / customSource source path resolution', () 
     expect(calls[calls.length - 1][0]).toBe('/templates/ntuas.svg');
   });
 
-  it('passes customSource.dataUrl to loadImageData when templateId is "custom"', async () => {
+  it('passes the cached data URL (resolved via customSource.imageHash) to loadImageData when templateId is "custom"', async () => {
     const customSource: CustomSource = {
-      dataUrl: 'data:image/png;base64,IAMTHESOURCE',
+      imageHash: 'deadbeefhash',
       filename: 'mine.png',
     };
     const { result } = renderHook(() =>
@@ -283,6 +299,49 @@ describe('useQrPipeline — template / customSource source path resolution', () 
 
     const calls = vi.mocked(loadImageData).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
+    // The mocked imageCache returns this fixed data URL for any hash.
     expect(calls[calls.length - 1][0]).toBe('data:image/png;base64,IAMTHESOURCE');
+  });
+});
+
+describe('useQrPipeline — pipeline-vs-poster invariant', () => {
+  // Defends CLAUDE.md "Key design constraints" #4: caption / posterSize /
+  // palette must NOT be inputs to this hook. They live behind the poster
+  // useMemo in App.tsx. This test fails compile-time-equivalently if a
+  // maintainer adds a new field to QrPipelineInput without updating the
+  // dep array, AND fails at runtime if a structurally-equal input
+  // (same field values, fresh object identity) re-runs the pipeline.
+  it('does not re-run buildMatrix when the input is structurally equal across renders', async () => {
+    const stableInput: QrPipelineInput = {
+      url: 'https://invariant.example.com',
+      templateId: 'ntuas',
+      customSource: null,
+      silhouetteScale: 1,
+      multiSize: false,
+      filter: 'mono',
+      renderMode: 'halftone',
+    };
+
+    const { result, rerender } = renderHook(
+      (input: QrPipelineInput) => useQrPipeline(input),
+      { initialProps: stableInput },
+    );
+
+    await waitFor(() => expect(result.current.isRendering).toBe(false));
+    const callsAfterFirst = vi.mocked(buildMatrix).mock.calls.length;
+
+    // Re-render with a structurally-equal but fresh-identity object. All
+    // primitive fields are deep-equal; customSource is null in both. The
+    // dep array compares each field individually so this MUST be a no-op.
+    rerender({ ...stableInput });
+    await waitFor(() => expect(result.current.isRendering).toBe(false));
+    expect(vi.mocked(buildMatrix).mock.calls.length).toBe(callsAfterFirst);
+
+    // Sanity check: an actual field change DOES re-run the pipeline. This
+    // makes the no-op assertion above meaningful (the test isn't passing
+    // because the hook is broken).
+    rerender({ ...stableInput, url: 'https://invariant-changed.example.com' });
+    await waitFor(() => expect(result.current.isRendering).toBe(false));
+    expect(vi.mocked(buildMatrix).mock.calls.length).toBeGreaterThan(callsAfterFirst);
   });
 });
