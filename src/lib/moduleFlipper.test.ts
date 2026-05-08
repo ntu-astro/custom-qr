@@ -79,10 +79,26 @@ describe('flipModulesByCodeword', () => {
     });
 
     expect(report.perBlockBudget).toBe(Math.floor(0.30 * layout.ecCount));
+    expect(report.policy.kind).toBe('fixed');
     for (const flips of report.flipsPerBlock) {
       expect(flips).toBeLessThanOrEqual(report.perBlockBudget);
       expect(flips).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it('probabilistic policy with failureTolerance=0 produces zero flips', () => {
+    const baseMatrix = buildMatrix(text);
+    const source = silhouetteImageData(256, 256);
+    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
+    const matrix = pickBestMask(text, target, predicted).best.matrix;
+    const ctx = buildSamplingContext(predicted, matrix);
+    const { report } = flipModulesByCodeword(matrix, target, {
+      samplingContext: ctx,
+      policy: { kind: 'probabilistic', failureTolerance: 0 },
+    });
+    expect(report.modulesChanged).toBe(0);
+    for (const flips of report.flipsPerBlock) expect(flips).toBe(0);
   });
 
   it('reduces sampling-sim total score', () => {
