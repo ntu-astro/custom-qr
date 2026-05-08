@@ -4,7 +4,8 @@
  *  region: a Gaussian-weighted average over a small subpixel window. This
  *  replaces the binary "matches target / doesn't" metric with a continuous
  *  score that captures how strongly each module is "voted" toward dark or
- *  light by its 3×3 module neighbourhood after halftone diffusion.
+ *  light by its 3×3 module neighbourhood after halftone diffusion (or, in
+ *  composite mode, after the cover image is painted into the surround).
  *
  *  Spec: 2026-05-08-pipeline-extensions-design.md §8 PR 4 — Sampling-Sim
  *  scoring. Used by maskOptimizer (per-mask total score) and moduleFlipper
@@ -12,9 +13,10 @@
 
 import type { QRMatrix } from '../types';
 import type { PredictedCanvas } from './predictedCanvas';
-import type { HalftoneTarget } from './halftoneTarget';
+import type { SilhouetteTarget } from './silhouetteTarget';
 import { SUBPX_PER_CELL } from './pipelineConstants';
-import { DARK_LUMA, LIGHT_LUMA } from './halftoneTunables';
+import { DARK_LUMA, LIGHT_LUMA } from './pipelineTunables';
+import { toLuminance } from './colorUtils';
 
 // ---------------------------------------------------------------------------
 // Kernel parameters
@@ -94,11 +96,21 @@ function lumaAt(predicted: PredictedCanvas, matrix: QRMatrix, sx: number, sy: nu
     }
   }
 
-  // Margin or surround subpixel — read predicted.data. predicted.data is
-  // greyscale (R=G=B for halftone-mono and composite-mono; raw raster for
-  // composite-color where we still take the luma channel as a proxy).
+  // Margin or surround subpixel — read predicted.data. For halftone (any
+  // filter) and composite-mono predicted.data is greyscale (R=G=B), so the
+  // R channel IS the luminance and we skip toLuminance on the hot path.
+  // For composite-color predicted.data carries the raw raster with original
+  // RGB+alpha; toLuminance gives the perceived value a camera would read at
+  // that subpixel (saturated reds and blues no longer mis-score as light,
+  // which would skew mask choice and flip selection).
   const idx4 = (sy * predicted.width + sx) * 4;
-  return predicted.data.data[idx4] / 255;
+  if (predicted.dataIsGreyscale) {
+    return predicted.data.data[idx4] / 255;
+  }
+  const r = predicted.data.data[idx4];
+  const g = predicted.data.data[idx4 + 1];
+  const b = predicted.data.data[idx4 + 2];
+  return toLuminance(r, g, b) / 255;
 }
 
 function computeReadbackForModule(
@@ -144,7 +156,7 @@ export function buildSamplingContext(predicted: PredictedCanvas, matrix: QRMatri
  *  for the per-codeword Δ-score in moduleFlipper. */
 export function scoreModuleAgainstTarget(
   ctx: SamplingSimContext,
-  target: HalftoneTarget,
+  target: SilhouetteTarget,
   mx: number,
   my: number,
 ): number {
@@ -186,7 +198,7 @@ export function applyModuleFlip(
 
 /** Sum the per-module scores over all non-reserved modules. Used as the
  *  per-mask objective in maskOptimizer. */
-export function totalScore(ctx: SamplingSimContext, target: HalftoneTarget): number {
+export function totalScore(ctx: SamplingSimContext, target: SilhouetteTarget): number {
   const size = ctx.matrix.size;
   let sum = 0;
   for (let my = 0; my < size; my++) {

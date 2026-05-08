@@ -29,7 +29,7 @@ export interface QRMatrix {
   /** Flat (size × size) mask: 1 = structurally reserved
    *  (finder/timing/alignment/format/version), 0 = data module. Indexed as
    *  `reserved[y * size + x]`. The fractional fidelity weights used by Stage 2
-   *  / Stage 3 live on `HalftoneTarget.importance`, not here. */
+   *  / Stage 3 live on `SilhouetteTarget.importance`, not here. */
   reserved: Uint8Array;
 }
 

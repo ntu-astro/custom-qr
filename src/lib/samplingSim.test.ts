@@ -6,7 +6,7 @@ import {
   totalScore,
 } from './samplingSim';
 import { buildPredictedCanvas } from './predictedCanvas';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 import { buildMatrix } from './qrMatrix';
 
 function whiteImageData(w: number, h: number): ImageData {
@@ -70,7 +70,7 @@ describe('totalScore', () => {
   it('returns a finite, non-negative number', () => {
     const source = whiteImageData(256, 256);
     const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
-    const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, 1);
+    const target = computeSilhouetteTarget(source, matrix.size, matrix.reserved, 1);
     const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
     const ctx = buildSamplingContext(predicted, matrix);
     const score = totalScore(ctx, target);
@@ -83,7 +83,7 @@ describe('scoreModuleAgainstTarget', () => {
   it('returns 0 for reserved modules (importance 0)', () => {
     const source = whiteImageData(256, 256);
     const matrix = buildMatrix('https://www.instagram.com/ntu_astro/');
-    const target = computeHalftoneTarget(source, matrix.size, matrix.reserved, 1);
+    const target = computeSilhouetteTarget(source, matrix.size, matrix.reserved, 1);
     const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
     const ctx = buildSamplingContext(predicted, matrix);
     // (0, 0) is reserved (top-left finder corner).

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMatrix } from './qrMatrix';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 import { pickBestMask, scoreMask } from './maskOptimizer';
 import { buildPredictedCanvas } from './predictedCanvas';
 
@@ -37,7 +37,7 @@ describe('pickBestMask', () => {
   it('returns 8 scored masks, sorted ascending by score', () => {
     const base = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, base.size, base.reserved);
+    const target = computeSilhouetteTarget(source, base.size, base.reserved);
     const predicted = buildPredictedCanvas(source, base, 0, 1, 'halftone', 'mono');
     const { best, scores } = pickBestMask(text, target, predicted);
 
@@ -53,8 +53,8 @@ describe('pickBestMask', () => {
     const base = buildMatrix(text);
     const blackSrc = blackImageData(256, 256);
     const silSrc = silhouetteImageData(256, 256);
-    const blackTarget = computeHalftoneTarget(blackSrc, base.size, base.reserved);
-    const silTarget = computeHalftoneTarget(silSrc, base.size, base.reserved);
+    const blackTarget = computeSilhouetteTarget(blackSrc, base.size, base.reserved);
+    const silTarget = computeSilhouetteTarget(silSrc, base.size, base.reserved);
     const blackPred = buildPredictedCanvas(blackSrc, base, 0, 1, 'halftone', 'mono');
     const silPred = buildPredictedCanvas(silSrc, base, 0, 1, 'halftone', 'mono');
 
@@ -67,7 +67,7 @@ describe('pickBestMask', () => {
   it('preserves the reserved mask on the returned matrix', () => {
     const base = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, base.size, base.reserved);
+    const target = computeSilhouetteTarget(source, base.size, base.reserved);
     const predicted = buildPredictedCanvas(source, base, 0, 1, 'halftone', 'mono');
     const { best } = pickBestMask(text, target, predicted);
     // Reserved mask must round-trip — the renderer and Stage 3 read it from
@@ -81,7 +81,7 @@ describe('scoreMask', () => {
     const text = 'a';
     const matrix = buildMatrix(text);
     const source = blackImageData(64, 64);
-    const target = computeHalftoneTarget(source, matrix.size, matrix.reserved);
+    const target = computeSilhouetteTarget(source, matrix.size, matrix.reserved);
     const predicted = buildPredictedCanvas(source, matrix, 0, 1, 'halftone', 'mono');
     const score = scoreMask(matrix, target, predicted);
     expect(Number.isFinite(score)).toBe(true);

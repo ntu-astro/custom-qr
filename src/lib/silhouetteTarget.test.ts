@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,10 +41,10 @@ function uniformReserved(size: number, value: 0 | 1): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// computeHalftoneTarget
+// computeSilhouetteTarget
 // ---------------------------------------------------------------------------
 
-describe('computeHalftoneTarget', () => {
+describe('computeSilhouetteTarget', () => {
   const SIZE = 12;
 
   it('reserved cells (reserved=1) always have importance 0', () => {
@@ -54,7 +54,7 @@ describe('computeHalftoneTarget', () => {
     reserved[1 * size + 1] = 1;
 
     const source = opaqueBlack(size, size);
-    const result = computeHalftoneTarget(source, size, reserved);
+    const result = computeSilhouetteTarget(source, size, reserved);
 
     expect(result.importance[1][1]).toBe(0);
     expect(result.size).toBe(size);
@@ -63,7 +63,7 @@ describe('computeHalftoneTarget', () => {
   it('returns arrays of the correct dimensions', () => {
     const reserved = uniformReserved(SIZE, 0);
     const source = opaqueBlack(SIZE, SIZE);
-    const result = computeHalftoneTarget(source, SIZE, reserved);
+    const result = computeSilhouetteTarget(source, SIZE, reserved);
 
     expect(result.size).toBe(SIZE);
     expect(result.target.length).toBe(SIZE);
@@ -79,7 +79,7 @@ describe('computeHalftoneTarget', () => {
     // Every non-reserved cell where target===true should get importance 1.0.
     const reserved = uniformReserved(SIZE, 0);
     const source = opaqueBlack(SIZE, SIZE);
-    const result = computeHalftoneTarget(source, SIZE, reserved);
+    const result = computeSilhouetteTarget(source, SIZE, reserved);
 
     let foundDark = false;
     for (let y = 0; y < SIZE; y++) {
@@ -99,7 +99,7 @@ describe('computeHalftoneTarget', () => {
     // Every non-reserved cell where target===false should get importance 0.1.
     const reserved = uniformReserved(SIZE, 0);
     const source = opaqueWhite(SIZE, SIZE);
-    const result = computeHalftoneTarget(source, SIZE, reserved);
+    const result = computeSilhouetteTarget(source, SIZE, reserved);
 
     let foundLight = false;
     for (let y = 0; y < SIZE; y++) {
@@ -120,7 +120,7 @@ describe('computeHalftoneTarget', () => {
     reserved[0] = 1;
     reserved[(SIZE - 1) * SIZE + (SIZE - 1)] = 1;
     const source = opaqueBlack(SIZE, SIZE);
-    const result = computeHalftoneTarget(source, SIZE, reserved);
+    const result = computeSilhouetteTarget(source, SIZE, reserved);
 
     const allowed = new Set([0, 0.1, 1.0]);
     for (let y = 0; y < SIZE; y++) {
@@ -137,8 +137,8 @@ describe('computeHalftoneTarget', () => {
     const reserved = uniformReserved(SIZE, 0);
     const source = opaqueBlack(SIZE, SIZE);
 
-    const fullScale = computeHalftoneTarget(source, SIZE, reserved, 1);
-    const halfScale = computeHalftoneTarget(source, SIZE, reserved, 0.5);
+    const fullScale = computeSilhouetteTarget(source, SIZE, reserved, 1);
+    const halfScale = computeSilhouetteTarget(source, SIZE, reserved, 0.5);
 
     const darkFull = fullScale.target.flat().filter(Boolean).length;
     const darkHalf = halfScale.target.flat().filter(Boolean).length;

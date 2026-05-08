@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMatrix } from './qrMatrix';
-import { computeHalftoneTarget } from './halftoneTarget';
+import { computeSilhouetteTarget } from './silhouetteTarget';
 import { pickBestMask } from './maskOptimizer';
 import { flipModulesByCodeword } from './moduleFlipper';
 import { getEccLayoutForH } from './codewordLayout';
@@ -67,7 +67,7 @@ describe('flipModulesByCodeword', () => {
   it('respects the per-block flip budget', () => {
     const baseMatrix = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const target = computeSilhouetteTarget(source, baseMatrix.size, baseMatrix.reserved);
     const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
     const matrix = pickBestMask(text, target, predicted).best.matrix;
     const layout = getEccLayoutForH(matrix.size);
@@ -89,7 +89,7 @@ describe('flipModulesByCodeword', () => {
   it('probabilistic policy with failureTolerance=0 produces zero flips', () => {
     const baseMatrix = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const target = computeSilhouetteTarget(source, baseMatrix.size, baseMatrix.reserved);
     const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
     const matrix = pickBestMask(text, target, predicted).best.matrix;
     const ctx = buildSamplingContext(predicted, matrix);
@@ -104,7 +104,7 @@ describe('flipModulesByCodeword', () => {
   it('reduces sampling-sim total score', () => {
     const baseMatrix = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const target = computeSilhouetteTarget(source, baseMatrix.size, baseMatrix.reserved);
     const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
     const matrix = pickBestMask(text, target, predicted).best.matrix;
 
@@ -149,7 +149,7 @@ describe('flipModulesByCodeword', () => {
     // every accepted flip is a strict gain over the post-previous-flip state.
     const baseMatrix = buildMatrix(text);
     const source = silhouetteImageData(256, 256);
-    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const target = computeSilhouetteTarget(source, baseMatrix.size, baseMatrix.reserved);
     const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
     const matrix = pickBestMask(text, target, predicted).best.matrix;
     const layout = getEccLayoutForH(matrix.size);

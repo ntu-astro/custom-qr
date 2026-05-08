@@ -39,8 +39,8 @@ vi.mock('../lib/qrMatrix', () => ({
   })),
 }));
 
-vi.mock('../lib/halftoneTarget', () => ({
-  computeHalftoneTarget: vi.fn(() => ({
+vi.mock('../lib/silhouetteTarget', () => ({
+  computeSilhouetteTarget: vi.fn(() => ({
     size: 21,
     target: Array.from({ length: 21 }, () => Array<boolean>(21).fill(false)),
     importance: Array.from({ length: 21 }, () => Array<number>(21).fill(0)),
