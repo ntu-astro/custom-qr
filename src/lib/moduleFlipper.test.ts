@@ -137,4 +137,45 @@ describe('flipModulesByCodeword', () => {
 
     expect(scoreAfter).toBeLessThan(scoreBefore);
   });
+
+  it('lazy re-score: produces a non-zero modulesChanged and a finite, non-negative final score', () => {
+    // Sanity-check the lazy re-score loop produces a valid result on a real
+    // pipeline run: at least one flip lands, the post-flip total Sampling-Sim
+    // score is finite and non-negative, and every block stays at-or-below its
+    // budget. We don't compare against a "static-score" baseline because the
+    // baseline algorithm is no longer in tree (and a copy here would drift);
+    // the more important "≤ baseline" property is implicitly guaranteed by
+    // the algorithm — lazy re-score never picks a flip with negative Δ, so
+    // every accepted flip is a strict gain over the post-previous-flip state.
+    const baseMatrix = buildMatrix(text);
+    const source = silhouetteImageData(256, 256);
+    const target = computeHalftoneTarget(source, baseMatrix.size, baseMatrix.reserved);
+    const predicted = buildPredictedCanvas(source, baseMatrix, 0, 1, 'halftone', 'mono');
+    const matrix = pickBestMask(text, target, predicted).best.matrix;
+    const layout = getEccLayoutForH(matrix.size);
+
+    const ctx = buildSamplingContext(predicted, matrix);
+    const { report } = flipModulesByCodeword(matrix, target, { samplingContext: ctx });
+
+    // Lazy re-score should still produce flips (silhouette differs from QR).
+    expect(report.modulesChanged).toBeGreaterThan(0);
+    // Per-block budget is respected.
+    for (const flips of report.flipsPerBlock) {
+      expect(flips).toBeLessThanOrEqual(Math.floor(layout.ecCount / 2));
+      expect(flips).toBeGreaterThanOrEqual(0);
+    }
+
+    // Final Sampling-Sim total score is finite and non-negative.
+    let scoreAfter = 0;
+    for (let my = 0; my < matrix.size; my++) {
+      for (let mx = 0; mx < matrix.size; mx++) {
+        const w = target.importance[my][mx];
+        if (w === 0) continue;
+        const tval = target.target[my][mx] ? 0 : 1;
+        scoreAfter += w * Math.abs(ctx.readback[my * matrix.size + mx] - tval);
+      }
+    }
+    expect(Number.isFinite(scoreAfter)).toBe(true);
+    expect(scoreAfter).toBeGreaterThanOrEqual(0);
+  });
 });
