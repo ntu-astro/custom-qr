@@ -139,14 +139,14 @@ Replace the boolean `colorHalftone` flag with a string union `filter: 'mono' | '
 - [ ] All references compile (`npm run typecheck` passes with zero errors).
 - [ ] Snapshot test in `halftoneRenderer.test.ts` produces byte-identical output for both `'mono'` (was `colorHalftone: false`) and `'color'` (was `colorHalftone: true`) paths.
 - [ ] `npm run lint` passes with zero warnings.
-- [ ] All existing tests pass without modification beyond the rename find-and-replace.
+- [ ] All existing tests pass without modification beyond the rename find-and-replace. (`filter` stays **optional** with a `'mono'` default — preserving today's `?? false` semantics — so call sites that omit the field do not need to be touched.)
 
 ### File-by-file changes
 
 | File | Change |
 |---|---|
-| `src/types.ts` | Add `export type FilterMode = 'mono' \| 'color';`. Replace `colorHalftone?: boolean` in `RenderOptions` with `filter: FilterMode` (now required, no default). |
-| `src/lib/halftoneRenderer.ts` | Rename function param `colorHalftone: boolean` → `filter: FilterMode` at lines 172–282. Replace every `if (colorHalftone)` / `colorHalftone ?` with `if (filter === 'color')` / `filter === 'color' ?`. Update the `render()` entry point at line 260 to pass `opts.filter` (drop the `?? false` default — the field is now required). |
+| `src/types.ts` | Add `export type FilterMode = 'mono' \| 'color';`. Replace `colorHalftone?: boolean` in `RenderOptions` with `filter?: FilterMode` (**optional**, default `'mono'` — preserves today's `?? false` semantics so existing call sites that omit the field still compile). |
+| `src/lib/halftoneRenderer.ts` | Rename function param `colorHalftone: boolean` → `filter: FilterMode` at lines 172–282. Replace every `if (colorHalftone)` / `colorHalftone ?` with `if (filter === 'color')` / `filter === 'color' ?`. Update the `render()` entry point at line 260 to read `const filter = opts.filter ?? 'mono'` (mirrors the previous `?? false` default; the field stays optional in `RenderOptions`). Phase 1c may promote it to required if the new `renderMode` toggle warrants. |
 | `src/hooks/useQrPipeline.ts` | Stop inferring `colorHalftone: templateId === 'custom'` at line 92. Read `filter` from `QrPipelineInput` and pass through. |
 | `src/hooks/useQrPipeline.ts` (interface) | Extend `QrPipelineInput` with `filter: FilterMode`. |
 | `src/App.tsx` | Compute `filter = templateId === 'custom' ? 'color' : 'mono'` and pass to `useQrPipeline`. (This preserves today's heuristic; Phase 1c may move it elsewhere if the new `renderMode` toggle warrants.) |
@@ -163,7 +163,7 @@ export type FilterMode = 'mono' | 'color';
 export interface RenderOptions {
   marginPx: number;
   silhouetteScale?: number;
-  filter: FilterMode;          // was: colorHalftone?: boolean
+  filter?: FilterMode;         // was: colorHalftone?: boolean — stays optional, default 'mono'
 }
 
 // src/hooks/useQrPipeline.ts
@@ -239,8 +239,9 @@ Output of the renderer must remain **byte-identical** to pre-refactor for the ex
 
 | File | Action | Description |
 |---|---|---|
-| `src/lib/imageOps.ts` | **Modify** | Add named exports: `liftMarginBrightness`, `isOutsideSilhouette`, `clampLuminosity`, `blendAgainstWhite`. Add named export of constants: `MAX_INK_LUM`, `SILHOUETTE_ALPHA_THRESHOLD`, `SILHOUETTE_MAX_LUM`, `STRUCTURAL_INK`, `STRUCTURAL_INK_HEX`, `STRUCTURAL_INK_RGB`, `DARK_PIXEL_LUMA_CUTOFF`. Refactor `ditherFloydSteinberg` to call `blendAgainstWhite` rather than inline the alpha-blend at lines 51–58. |
+| `src/lib/imageOps.ts` | **Modify** | Add named exports: `liftMarginBrightness`, `isOutsideSilhouette`, `clampLuminosity`, `blendAgainstWhite`. Add named export of constants: `MAX_INK_LUM`, `SILHOUETTE_ALPHA_THRESHOLD`, `SILHOUETTE_MAX_LUM`, `STRUCTURAL_INK`, `STRUCTURAL_INK_HEX`, `STRUCTURAL_INK_RGB`, `DARK_PIXEL_LUMA_CUTOFF`. Refactor `ditherFloydSteinberg` to call `blendAgainstWhite` rather than inline the alpha-blend at lines 51–58. **Contract change:** `ditherFloydSteinberg` now expects pre-blended input — every caller must call `blendAgainstWhite` first. Three call sites today: `halftoneRenderer.ts` (existing), `halftoneTarget.ts:46` (existing — see below), and the new `predictedCanvas.ts`. |
 | `src/lib/predictedCanvas.ts` | **Create** | New module. Exports `PredictedCanvas` interface and `buildPredictedCanvas(source, matrix, marginCells, silhouetteScale, renderMode, filter): PredictedCanvas`. |
+| `src/lib/halftoneTarget.ts` | **Modify** | At line 46, pipeline `blendAgainstWhite` before `ditherFloydSteinberg(rasterised)` to match the new contract. Without this update, `rasterizeSource`'s alpha-0 letterbox pixels (where `silhouetteScale < 1` clears outside-silhouette regions) will read as luma=0 instead of luma=255, **inverting the silhouette target** for every transparent-background template (5 of 6 shipped). Update the docstring at lines 38–44 — it currently references the dither's internal alpha blend. |
 | `src/lib/halftoneRenderer.ts` | **Modify** | Delete the four helpers (now imported from `imageOps.ts`). Delete the supporting constants. Change `render(matrix, source, opts)` signature to `render(matrix, predicted, opts)`. Remove internal rasterise/lift/dither calls — those are in `predictedCanvas.ts` now. Add dev-mode `assert(predicted.reservedChecksum === computeChecksum(matrix.reserved))` at the top of `render`. Keep `pickInkColor`, `eachCell`, `readPixel`, `subSampleInkRgb`, the painting loop — all unchanged. |
 | `src/lib/halftoneRenderer.ts` | **Re-export** | Keep `STRUCTURAL_INK_HEX` re-export from this file (it is consumed elsewhere — verify with `grep`). If still used, re-export from `halftoneRenderer.ts` as `export { STRUCTURAL_INK_HEX } from './imageOps';`. |
 | `src/hooks/useQrPipeline.ts` | **Modify** | Insert `const predicted = buildPredictedCanvas(imageData, baseMatrix, marginCells, silhouetteScale, 'halftone', filter);` between `loadImageData` and `pickBestMask`. Pass `predicted` to `renderHalftone` instead of `imageData`. (`marginCells` derived from `CANVAS_MARGIN_PX` exactly as the renderer did.) |
@@ -374,6 +375,7 @@ function buildPredictedCanvas(source, matrix, marginCells, silhouetteScale, rend
 **Must keep passing without modification:**
 
 - All existing `halftoneRenderer.test.ts` byte-snapshot assertions (the whole point of the refactor is byte-identical output).
+- `halftoneTarget.test.ts` — including the existing "silhouetteScale propagates" assertion (`darkHalf < darkFull`), which is the regression gate for the `halftoneTarget.ts` call-site update above. Add a new assertion that `HalftoneTarget.target` and `HalftoneTarget.importance` are byte-identical to the pre-refactor output for at least one transparent-background template.
 - All other `*.test.ts` and `e2e/*.spec.ts`.
 
 ### Verification
@@ -480,7 +482,13 @@ function render(matrix, predicted, opts):
     eachCell(matrix, marginCells, cellPx, cell -> {
         if not cell.inMatrix: return
         if cell.isReserved:
-            // Match halftoneRenderer's reserved-cell branch exactly.
+            // INTENTIONAL DIVERGENCE from halftoneRenderer: composite always uses
+            // STRUCTURAL_INK_RGB for reserved-dark cells, even when filter='mono'.
+            // halftoneRenderer's mono branch tints reserved cells with
+            // silhouetteInkRgb (= pickInkColor(source)) for visual cohesion;
+            // composite mode prioritises decode contrast — finder/timing/alignment
+            // patterns must read as cleanly as possible against a photo-coloured
+            // surround, and that means structural ink everywhere.
             if cell.isModuleDark:
                 ctx.fillStyle = STRUCTURAL_INK_RGB
                 ctx.fillRect(cell.px, cell.py, cellPx, cellPx)
@@ -517,7 +525,7 @@ function render(matrix, predicted, opts):
     return canvas
 ```
 
-**Helper extraction note:** if the reserved-cell branch in `halftoneRenderer.ts` and `compositeRenderer.ts` ends up identical (likely), promote it to a private helper `paintReservedCell(ctx, cell, cellPx)` in a shared place. Candidate location: `imageOps.ts` is wrong (renderer-specific); make it a tiny helper `src/lib/cellPainting.ts` or keep duplication if it stays small. Decide during implementation; flag in PR description.
+**Helper extraction note:** the reserved-cell branches in `halftoneRenderer.ts` and `compositeRenderer.ts` are **not** identical — composite always paints reserved-dark cells with `STRUCTURAL_INK_RGB`, while halftone uses `silhouetteInkRgb` (`pickInkColor(source)`) when `filter === 'mono'` (see "INTENTIONAL DIVERGENCE" comment in the algorithm sketch above). Do **not** extract to a shared helper. Keep the small duplication; it makes the divergence locally readable in each renderer. If a future render mode shares composite's contract (e.g. a Cox QArt mode with the same decode-contrast prioritisation), revisit then.
 
 ### Test plan
 
@@ -562,7 +570,7 @@ E2E coverage in 1c: extend `e2e/flows.spec.ts` (or add a new spec) to toggle the
 ### Open questions
 
 - **Filter heuristic move.** Phase 1a left the `templateId === 'custom' ? 'color' : 'mono'` heuristic in `App.tsx`. With composite mode now exposed, do we (a) keep the heuristic, (b) also expose `filter` as an explicit user setting, or (c) couple `filter` to `renderMode`? Spec is silent; recommend (a) for 1c and revisit if user feedback warrants. Flag in PR description for sign-off.
-- **Reserved-cell helper extraction.** See "Helper extraction note" above. Decide during implementation.
+- ~~**Reserved-cell helper extraction.**~~ **Resolved** — see "Helper extraction note" above. Composite intentionally diverges from halftone-mono on reserved cells (decode-contrast priority); no shared helper, small duplication kept.
 - **`predicted.raster` lifetime.** Composite-color uses it for surround-subpixel silhouette fallback. If memory becomes a concern, consider lazy retention or pre-compute the fallback mask inside `buildPredictedCanvas`. Not blocking 1c.
 
 ---
@@ -592,9 +600,9 @@ The change must be **decode-rate-neutral or better** vs. Phase 1c — every QR t
 | File | Action | Description |
 |---|---|---|
 | `src/lib/samplingSim.ts` | **Create** | New module. Exports `SamplingSimContext`, `buildSamplingContext`, `scoreModuleAgainstTarget`, `applyModuleFlip`, `totalScore`. Internal: `gaussianKernel`, `recomputeReadback`, `computeReadbackForModule`. |
-| `src/lib/maskOptimizer.ts` | **Modify** | Replace `scoreMask` body. New signature: `scoreMask(matrix: QRMatrix, target: HalftoneTarget, predicted: PredictedCanvas): number`. Implementation: `const ctx = buildSamplingContext(predicted, matrix); return totalScore(ctx, target);`. Update `pickBestMask(text, target, predictedFor)` to take a `predictedFor: (matrix: QRMatrix) => PredictedCanvas` callback (each candidate matrix has different centre-subpixel values, so the predicted canvas differs per candidate). Alternative: pass the source `ImageData` plus the `marginCells`/`silhouetteScale` and let `pickBestMask` call `buildPredictedCanvas` per candidate. Recommend the callback shape — keeps `pickBestMask` ignorant of canvas-build internals. |
+| `src/lib/maskOptimizer.ts` | **Modify** | Replace `scoreMask` body. New signature: `scoreMask(matrix: QRMatrix, target: HalftoneTarget, predicted: PredictedCanvas): number`. Implementation: `const ctx = buildSamplingContext(predicted, matrix); return totalScore(ctx, target);`. Update `pickBestMask(text, target, predicted: PredictedCanvas)` to take **the canvas built once outside** — *not* a per-mask callback or factory. Justification: across the 8 mask candidates of a fixed QR version, `matrix.size` is identical and `matrix.reserved` is byte-identical (masking only flips data-module bits), so `buildPredictedCanvas`'s output is independent of the mask choice. Per-candidate variance lives in `SamplingSimContext.readback` — `lumaAt` reads `matrix.modules` at sample time, overriding `predicted.data`'s centre-subpixel value (see Phase 2 algorithm sketch / `lumaAt` below). Building the canvas 8× would waste ~80–200 ms of rasterise + `liftMarginBrightness` + Floyd–Steinberg + checksum work at V10 against the 500 ms ceiling, and would not match spec §8's perf accounting (which budgets `8 × buildSamplingContext`, not `8 × buildPredictedCanvas`). |
 | `src/lib/moduleFlipper.ts` | **Modify** | Inject a `SamplingSimContext` (via new option `samplingContext: SamplingSimContext` in `FlipOptions`). Per-codeword scoring: replace `target.importance[y][x]` weighted disagreement with the Sampling-Sim Δ-score: "if I set this codeword's modules to `target.target[y][x]`, what's the cumulative drop in `totalScore`?" Use `applyModuleFlip` to apply accepted flips and rely on its returned affected-module list to update the per-codeword scoring deltas of neighbouring codewords. Keep the per-block budget loop unchanged. |
-| `src/hooks/useQrPipeline.ts` | **Modify** | After `buildPredictedCanvas`, build `samplingContext = buildSamplingContext(predicted, baseMatrix)`. (For mask selection, the context is rebuilt per candidate inside `pickBestMask`.) Pass `samplingContext` to `flipModulesByCodeword`. |
+| `src/hooks/useQrPipeline.ts` | **Modify** | After `buildPredictedCanvas`, pass the single `predicted` canvas into `pickBestMask(text, target, predicted)`. `pickBestMask` internally calls `buildSamplingContext(predicted, candidateMatrix)` per candidate (8× cheap kernel work). After mask selection, build `samplingContext = buildSamplingContext(predicted, baseMatrix)` for the chosen mask and pass to `flipModulesByCodeword`. |
 | `src/lib/samplingSim.test.ts` | **Create** | Unit tests; see Test plan. |
 | `src/lib/maskOptimizer.test.ts` | **Modify** | Update `scoreMask` call sites to pass the new `predicted` argument. Existing semantic tests (mask 0..7, lower score wins) must still pass — assertions about *which* mask wins may need to be replaced with structural assertions ("returns one of the 8 candidates", "scores are monotonic in the chosen objective") if the scoring change picks a different mask. |
 | `src/lib/moduleFlipper.test.ts` | **Modify** | Inject a stub `SamplingSimContext` for the existing tests. The tests should assert the per-block budget loop terminates and `flipsPerBlock` reflects the budget — not the specific modules flipped, since Sampling-Sim chooses differently. |
@@ -785,7 +793,7 @@ Plus a manual jsqr-pass-rate diff vs. Phase 1c baseline: capture the per-case de
 ### Open questions
 
 - **Receptive radius constant.** Spec says ~25 modules; algorithm derivation says 9. Resolve before locking the constant in `samplingSim.ts`. The "incremental matches full rebuild" test will catch a mistake but a bigger radius is wasted work. **Flag in PR description for reviewer sign-off.**
-- **`pickBestMask` callback shape.** Per the file table above, the `predictedFor: (matrix) => PredictedCanvas` callback is recommended over having `pickBestMask` know how to call `buildPredictedCanvas`. Confirm with a reviewer; it's a small but consequential API choice.
+- ~~**`pickBestMask` callback shape.**~~ **Resolved** — `pickBestMask(text, target, predicted: PredictedCanvas)` takes the canvas built once outside, not a per-mask callback. Per-candidate variance lives in `SamplingSimContext.readback` via `lumaAt(matrix, …)`, not in `predicted.data`. Avoids 8× canvas rebuild (~80–200 ms at V10) against the 500 ms ceiling and matches spec §8's perf accounting. See file-table justification above.
 - **Lazy re-score complexity.** If lazy re-score adds >100 LoC, consider a simpler "re-score only after each block finishes" approximation. Document trade-off in PR.
 
 ---
@@ -851,6 +859,10 @@ export interface BlockFlipState {
   cumulativeSurvivalProb: number;
   /** Number of flips accepted so far in this block. Hard cap at floor(ecCount/2). */
   flipsAccepted: number;
+  /** Per-block error-correction count (from `codewordLayout.ecCount`), copied
+   *  in once at block-loop entry so `shouldAcceptFlip` doesn't have to reach
+   *  through `ctx` or thread an extra parameter. */
+  ecCount: number;
 }
 
 export function decodeFailureProb(
@@ -863,7 +875,7 @@ export function shouldAcceptFlip(
   blockState: BlockFlipState,
   candidate: CodewordCandidate,
   ctx: SamplingSimContext,
-): boolean;
+): { accepted: boolean; pNew: number };
 ```
 
 ```typescript
@@ -892,31 +904,42 @@ function decodeFailureProb(features, coeffs):
     return 1 / (1 + exp(-z))
 
 function shouldAcceptFlip(policy, blockState, candidate, ctx):
+    // ecCount is read from blockState (copied in once at block-loop entry, see
+    // outer loop below). Returns { accepted, pNew } so the caller can update
+    // blockState.cumulativeSurvivalProb without re-running extractFeatures /
+    // decodeFailureProb.
     if policy.kind == 'fixed':
-        return blockState.flipsAccepted < floor(policy.ratio * ecCount)
+        accepted = blockState.flipsAccepted < floor(policy.ratio * blockState.ecCount)
+        return { accepted, pNew: 0 }   // pNew unused under 'fixed'
 
     // 'probabilistic': accept if the new cumulative failure probability stays
     // under the tolerance. Per spec §9: P(block-fails) = 1 - prod(1 - p_i).
     // Hard cap by floor(ecCount/2) regardless of probability — RS-H cannot
     // recover more than that even in the best case.
-    if blockState.flipsAccepted >= floor(ecCount / 2): return false
+    if blockState.flipsAccepted >= floor(blockState.ecCount / 2):
+        return { accepted: false, pNew: 0 }
 
-    p_new = max(p_i for i in candidate.modules):
+    pNew = max(p_i for i in candidate.modules):
         features_i = extractFeatures(ctx, candidate.modules[i])
         decodeFailureProb(features_i, ART_UP_COEFFICIENTS)
-    survival = blockState.cumulativeSurvivalProb * (1 - p_new)
+    survival = blockState.cumulativeSurvivalProb * (1 - pNew)
     cumulativeFailure = 1 - survival
-    return cumulativeFailure < policy.failureTolerance
+    return { accepted: cumulativeFailure < policy.failureTolerance, pNew }
 
 // Module-flipper outer loop becomes:
 for each block b:
-    state = { cumulativeSurvivalProb: 1, flipsAccepted: 0 }
+    state = {
+        cumulativeSurvivalProb: 1,
+        flipsAccepted: 0,
+        ecCount: layout.ecCountForBlock(b),   // from existing codewordLayout
+    }
     candidates = sort_by_sampling_sim_delta(candidatesInBlock[b])
     for cw in candidates:
-        if not shouldAcceptFlip(policy, state, cw, ctx): break
+        { accepted, pNew } = shouldAcceptFlip(policy, state, cw, ctx)
+        if not accepted: break
         applyFlip(cw)
         state.flipsAccepted += 1
-        state.cumulativeSurvivalProb *= (1 - p_for_cw)
+        state.cumulativeSurvivalProb *= (1 - pNew)   // pNew = 0 under 'fixed' → no-op
 ```
 
 `extractFeatures(ctx, module)` reads:
