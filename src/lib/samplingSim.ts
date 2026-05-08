@@ -13,6 +13,8 @@
 import type { QRMatrix } from '../types';
 import type { PredictedCanvas } from './predictedCanvas';
 import type { HalftoneTarget } from './halftoneTarget';
+import { SUBPX_PER_CELL } from './pipelineConstants';
+import { DARK_LUMA, LIGHT_LUMA } from './halftoneTunables';
 
 // ---------------------------------------------------------------------------
 // Kernel parameters
@@ -31,9 +33,6 @@ const KERNEL_SIGMA = 1.0;
  *  module, the kernel touches the immediately adjacent modules only — a 3×3
  *  module neighbourhood centred on the flipped module. */
 const RECEPTIVE_RADIUS_MODULES = 1;
-
-const DARK_LUMA = 0.0;
-const LIGHT_LUMA = 1.0;
 
 const KERNEL_WEIGHTS: Float32Array = (() => {
   const weights = new Float32Array(KERNEL_SIZE * KERNEL_SIZE);
@@ -87,8 +86,8 @@ function lumaAt(predicted: PredictedCanvas, matrix: QRMatrix, sx: number, sy: nu
 
   if (cx >= 0 && cy >= 0 && cx < matrix.size && cy < matrix.size) {
     const isReserved = matrix.reserved[cy * matrix.size + cx] === 1;
-    const subX = sx - (cx + marginCells) * 3;
-    const subY = sy - (cy + marginCells) * 3;
+    const subX = sx - (cx + marginCells) * SUBPX_PER_CELL;
+    const subY = sy - (cy + marginCells) * SUBPX_PER_CELL;
     const isCentre = subX === 1 && subY === 1;
     if (isReserved || isCentre) {
       return matrix.modules[cy][cx] ? DARK_LUMA : LIGHT_LUMA;
@@ -108,8 +107,8 @@ function computeReadbackForModule(
   mx: number,
   my: number,
 ): number {
-  const csx = (mx + predicted.marginCells) * 3 + 1;
-  const csy = (my + predicted.marginCells) * 3 + 1;
+  const csx = (mx + predicted.marginCells) * SUBPX_PER_CELL + 1;
+  const csy = (my + predicted.marginCells) * SUBPX_PER_CELL + 1;
   const half = (KERNEL_SIZE - 1) / 2;
   let sum = 0;
   for (let dy = -half; dy <= half; dy++) {

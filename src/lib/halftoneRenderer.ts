@@ -3,7 +3,6 @@ import {
   isOutsideSilhouette,
   clampLuminosity,
   STRUCTURAL_INK,
-  STRUCTURAL_INK_HEX,
   STRUCTURAL_INK_RGB,
   MAX_INK_LUM,
   DARK_PIXEL_LUMA_CUTOFF,
@@ -11,6 +10,10 @@ import {
 import type { PredictedCanvas } from './predictedCanvas';
 import { computeReservedChecksum } from './predictedCanvas';
 import { toLuminance } from './colorUtils';
+import { SUBPX_PER_CELL } from './pipelineConstants';
+import { DOMINANT_INK_LUM_CEILING } from './halftoneTunables';
+import { eachCell } from './cellIteration';
+import type { Renderer } from './renderers/types';
 
 // 18 = 3 × 6, so each module subdivides cleanly into a 3×3 grid of 6-pixel sub-pixels.
 // Implements Chu et al. 2013 ("Halftone QR Codes", SIGGRAPH Asia): paint a Floyd–Steinberg
@@ -20,10 +23,6 @@ import { toLuminance } from './colorUtils';
 // ring near-white so jsqr-style decoders can still lock onto the finder patterns.
 
 interface InkColor { r: number; g: number; b: number }
-
-// Re-export STRUCTURAL_INK_HEX for the poster compositor and any external
-// consumers that imported it from this module historically.
-export { STRUCTURAL_INK_HEX };
 
 /** Pick a dominant non-background "ink" colour out of the source so the silhouette
  *  can be tinted. Falls back to plum-black for plain monochrome silhouettes or
@@ -47,40 +46,7 @@ function pickInkColor(source: ImageData): InkColor {
     g: Math.round(sumG / count),
     b: Math.round(sumB / count),
   };
-  return clampLuminosity(avg.r, avg.g, avg.b, 0.35);
-}
-
-interface CellContext {
-  px: number;
-  py: number;
-  inMatrix: boolean;
-  isReserved: boolean;
-  isModuleDark: boolean;
-  mx: number;
-  my: number;
-}
-
-function eachCell(
-  matrix: QRMatrix,
-  marginCells: number,
-  cellPx: number,
-  visit: (cell: CellContext) => void,
-) {
-  const totalCells = matrix.size + 2 * marginCells;
-  for (let y = 0; y < totalCells; y++) {
-    for (let x = 0; x < totalCells; x++) {
-      const px = x * cellPx;
-      const py = y * cellPx;
-      const inMatrix =
-        x >= marginCells && x < marginCells + matrix.size &&
-        y >= marginCells && y < marginCells + matrix.size;
-      const mx = x - marginCells;
-      const my = y - marginCells;
-      const isReserved = inMatrix && matrix.reserved[my * matrix.size + mx] === 1;
-      const isModuleDark = inMatrix && matrix.modules[my][mx];
-      visit({ px, py, inMatrix, isReserved, isModuleDark, mx, my });
-    }
-  }
+  return clampLuminosity(avg.r, avg.g, avg.b, DOMINANT_INK_LUM_CEILING);
 }
 
 function readPixel(data: Uint8ClampedArray, idx4: number): { r: number; g: number; b: number } {
@@ -148,8 +114,8 @@ function paintHalftone(
   // into mid-grey.
   const subSampleInkRgb = (mx: number, my: number): string => {
     if (filter !== 'color') return silhouetteInkRgb;
-    const sx = (mx + marginCells) * 3 + 1;
-    const sy = (my + marginCells) * 3 + 1;
+    const sx = (mx + marginCells) * SUBPX_PER_CELL + 1;
+    const sy = (my + marginCells) * SUBPX_PER_CELL + 1;
     const j = (sy * canvasSubSize + sx) * 4;
     if (isOutsideSilhouette(predicted.raster.data, j)) return STRUCTURAL_INK_RGB;
     const px = readPixel(predicted.raster.data, j);
@@ -213,3 +179,12 @@ export function render(
   paintHalftone(ctx, matrix, predicted, source, opts.filter ?? 'mono');
   return canvas;
 }
+
+/** Registry-friendly adapter around `render`. The function-style `render`
+ *  export is preserved unchanged so existing tests (halftoneRenderer.test.ts,
+ *  pipelineIntegration.test.ts, scanVerifier.test.ts) keep working. */
+export const halftoneRenderer: Renderer = {
+  id: 'halftone',
+  render: ({ matrix, predicted, source, opts }) =>
+    render(matrix, predicted, source, opts),
+};
