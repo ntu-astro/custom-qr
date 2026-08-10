@@ -63,9 +63,7 @@ describe('App — header', () => {
   it('renders the description copy', () => {
     render(<App />);
     expect(
-      screen.getByText(
-        'Custom QR codes for NTU Astronomical Society. No backend, no tracking.',
-      ),
+      screen.getByText('Custom QR codes for NTU Astronomical Society. Internal Tools'),
     ).toBeInTheDocument();
   });
 });

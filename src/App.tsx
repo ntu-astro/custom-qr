@@ -127,7 +127,7 @@ export default function App() {
       <header className="mb-8 flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-heading">Astro QR</h1>
         <p className="text-sm text-olivegray">
-          Custom QR codes for NTU Astronomical Society. No backend, no tracking.
+          Custom QR codes for NTU Astronomical Society. Internal Tools
         </p>
       </header>
 
